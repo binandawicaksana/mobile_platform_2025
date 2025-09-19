@@ -1,29 +1,23 @@
 import 'dart:io';
-
-void main() {
-  // Input nama depan
-  stdout.write('Masukkan nama depan: ');
-  String? namaDepan = stdin.readLineSync();
-
-  // Input nama belakang
-  stdout.write('Masukkan nama belakang: ');
-  String? namaBelakang = stdin.readLineSync();
-
-  // Input nilai a
-  stdout.write('Masukkan nilai a: ');
-  int a = int.parse(stdin.readLineSync()!);
-
-  // Input nilai b
-  stdout.write('Masukkan nilai b: ');
-  int b = int.parse(stdin.readLineSync()!);
-
-  print('\nNama Lengkap: $namaDepan $namaBelakang');
-  print('Hasil penjumlahan: ${a + b}');
-  print('Hasil pengurangan: ${a - b}');
-  print('Hasil perkalian: ${a * b}');
-  if (b != 0) {
-    print('Hasil pembagian: ${a / b}');
-  } else {
-    print('Hasil pembagian: Tidak dapat membagi dengan nol');
-  }
+void main(List<String> args) {
+  stdout.write("Masukkan nilai A: ");
+  int nilaiA = int.parse(stdin.readLineSync()!);
+  stdout.write("Masukkan nilai B: ");
+  int nilaiB = int.parse(stdin.readLineSync()!);
+  stdout.write("Masukkan nama depan: ");
+  String namaDepan = stdin.readLineSync()!;
+  stdout.write("Masukkan nama belakang: ");
+  String namaBelakang = stdin.readLineSync()!;
+  String namaLengkap = "$namaDepan +' '+ $namaBelakang";
+  int hasilJumlah = nilaiA + nilaiB;
+  int hasilKali = nilaiA * nilaiB;
+  double hasilBagi = nilaiA / nilaiB;
+  print("\nnilai A: $nilaiA");
+  print("nilai B: $nilaiB");
+  print("nama lengkap : $namaLengkap");
+  print("hasil penjumlahan: $hasilJumlah");
+  print("hasil perkalian: $hasilKali");
+  print("hasil pembagian: $hasilBagi");
 }
+
+//daudzulfikar
