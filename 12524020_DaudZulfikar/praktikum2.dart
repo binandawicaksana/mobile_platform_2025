@@ -19,3 +19,5 @@ void main(List<String> args) {
   print("hasil perkalian: $hasilKali");
   print("hasil pembagian: $hasilBagi");
 }
+
+//daudzulfikar
