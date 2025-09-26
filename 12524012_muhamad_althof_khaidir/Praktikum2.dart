@@ -17,5 +17,5 @@ void main(List<String> args) {
   print("nama lengkap : $namaLengkap");
   print("hasil penjumlahan: $hasilJumlah");
   print("hasil perkalian: $hasilKali");
-  print("hasil pembagian: $hasilBagi");
+  print("hasil pembagian: $hasilBagi");
 }
