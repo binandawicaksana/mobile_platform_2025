@@ -1,33 +1,38 @@
-def validasi_input(tanggal, bulan, tahun):
-    # Cek apakah semua input berupa angka
-    if not (tanggal.isdigit() and bulan.isdigit() and tahun.isdigit()):
-        return "Hanya menerima format Angka"
+import 'dart:io';
 
-    # Ubah ke integer
-    tanggal = int(tanggal)
-    bulan = int(bulan)
-    tahun = int(tahun)
+void main() {
+  stdout.write("Masukkan tanggal: ");
+  var tgl = int.tryParse(stdin.readLineSync()!);
 
-    # Validasi tanggal
-    if not (1 <= tanggal <= 31):
-        return "Anda Salah Memasukan Tanggal"
+  stdout.write("Masukkan bulan: ");
+  var bln = int.tryParse(stdin.readLineSync()!);
 
-    # Validasi bulan
-    if not (1 <= bulan <= 12):
-        return "Anda Salah Memasukan Bulan"
+  stdout.write("Masukkan tahun: ");
+  var thn = int.tryParse(stdin.readLineSync()!);
 
-    # Validasi tahun
-    if not (1000 <= tahun <= 2999):
-        return "Anda Salah Memasukan Tahun"
+  bool adaError = false;
 
-    # Jika semua valid
-    return f"{tanggal}-{bulan}-{tahun}"
+  if (tgl == null || bln == null || thn == null) {
+    print("Hanya menerima format Angka");
+    adaError = true;
+  }
 
+  if (tgl != null && (tgl < 1 || tgl > 31)) {
+    print("Anda Salah Memasukan Tanggal");
+    adaError = true;
+  }
 
-# Program utama
-tgl = input("Masukkan tanggal: ")
-bln = input("Masukkan bulan: ")
-thn = input("Masukkan tahun: ")
+  if (bln != null && (bln < 1 || bln > 12)) {
+    print("Anda Salah Memasukan Bulan");
+    adaError = true;
+  }
 
-hasil = validasi_input(tgl, bln, thn)
-print(hasil)
+  if (thn != null && (thn < 1000 || thn > 2999)) {
+    print("Anda Salah Memasukan Tahun");
+    adaError = true;
+  }
+
+  if (!adaError) {
+    print("$tgl-$bln-$thn");
+  }
+}
