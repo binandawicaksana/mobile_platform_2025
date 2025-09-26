@@ -35,3 +35,4 @@ void main() {
     print("Hanya menerima format Angka");
   }
 }
+ru
