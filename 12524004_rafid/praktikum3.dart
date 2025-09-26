@@ -11,14 +11,17 @@ void main() {
   var thn = int.tryParse(stdin.readLineSync()!);
 
   if (tgl == null || bln == null || thn == null) {
-    print("Hanya menerima format Angka");
-  } else if (tgl < 1 || tgl > 31) {
-    print("Anda Salah Memasukan Tanggal");
-  } else if (bln < 1 || bln > 12) {
-    print("Anda Salah Memasukan Bulan");
-  } else if (thn < 1000 || thn > 2999) {
-    print("Anda Salah Memasukan Tahun");
-  } else {
-    print("$tgl-$bln-$thn");
+    print("Hanya menerima format angka!");
+    return;
+  }
+
+  bool tglValid = tgl >= 1 && tgl <= 31;
+  bool blnValid = bln >= 1 && bln <= 12;
+  bool thnValid = thn >= 1000 && thn <= 2999;
+
+  if (!tglValid && !blnValid && !thnValid) {
+    print("Salah semua cuy!");
+  } else if (tglValid && blnValid && thnValid) {
+    print("Tanggal : $tgl-$bln-$thn");
   }
 }
