@@ -10,18 +10,29 @@ void main() {
   stdout.write("Masukkan tahun: ");
   var thn = int.tryParse(stdin.readLineSync()!);
 
+  bool adaError = false;
+
   if (tgl == null || bln == null || thn == null) {
-    print("Hanya menerima format angka!");
-    return;
+    print("Hanya menerima format Angka");
+    adaError = true;
   }
 
-  bool tglValid = tgl >= 1 && tgl <= 31;
-  bool blnValid = bln >= 1 && bln <= 12;
-  bool thnValid = thn >= 1000 && thn <= 2999;
+  if (tgl != null && (tgl < 1 || tgl > 31)) {
+    print("Anda Salah Memasukan Tanggal");
+    adaError = true;
+  }
 
-  if (!tglValid && !blnValid && !thnValid) {
-    print("Salah semua cuy!");
-  } else if (tglValid && blnValid && thnValid) {
-    print("Tanggal : $tgl-$bln-$thn");
+  if (bln != null && (bln < 1 || bln > 12)) {
+    print("Anda Salah Memasukan Bulan");
+    adaError = true;
+  }
+
+  if (thn != null && (thn < 1000 || thn > 2999)) {
+    print("Anda Salah Memasukan Tahun");
+    adaError = true;
+  }
+
+  if (!adaError) {
+    print("$tgl-$bln-$thn");
   }
 }
