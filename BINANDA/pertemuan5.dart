@@ -44,7 +44,7 @@
 // print(arrayMulti[2][1]); // 8
 // }
 
-void main(){
+// void main(){
 // //forEach()
 // var perusahaan = ['bukalapak', 'tokopedia', 'blibli'];
 // perusahaan.forEach((data)=> print(data)); 
@@ -96,4 +96,4 @@ void main(){
 // var pairs = [[1, 2], [‘='a', 'b'], [3, 4]];
 // var flatmaps = pairs.expand((pair)=> pair);
 // print(flatmaps);
-}
+// }
