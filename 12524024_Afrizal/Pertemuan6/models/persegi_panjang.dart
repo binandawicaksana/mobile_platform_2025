@@ -4,7 +4,6 @@ class PersegiPanjang extends BangunDatar {
   double _panjang = 0;
   double _lebar = 0;
 
-  // Setter dengan validasi
   set panjang(double value) {
     if (value > 0) {
       _panjang = value;
@@ -21,7 +20,6 @@ class PersegiPanjang extends BangunDatar {
     }
   }
 
-  // Getter untuk akses data
   double get panjang => _panjang;
   double get lebar => _lebar;
 
