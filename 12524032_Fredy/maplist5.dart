@@ -7,10 +7,8 @@ void main() {
     ["0004", "Bintang Senjaya", "Martapura", "6/4/1970", "Berkebun"]
   ];
 
-  // tampilkan setiap data
   input.forEach((data) {
 
-    // ubah list jadi map
     Map<String, String> biodata = {
       "Nomor ID": data[0],
       "Nama Lengkap": data[1],
