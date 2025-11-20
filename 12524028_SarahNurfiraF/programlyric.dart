@@ -7,7 +7,7 @@ class Line {
 }
 
 Future<void> main() async {
-  print("=== Karaoke Async: Lagu Nadin Amizah (Potongan) ===");
+  print("=== Karaoke Async: Nadin Amizah (Rayuan Perempuan Gila) ===");
   print("Mulai dalam 2 detik...\n");
   await Future.delayed(const Duration(seconds: 2));
 
@@ -35,5 +35,5 @@ Future<void> main() async {
     print("♪ ${line.text}");
   }
 
-  print("\n=== Selesai ===");
+  print("\n=== Selesai guyssssssss🎶 ===");
 }
