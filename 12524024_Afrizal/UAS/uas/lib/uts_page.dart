@@ -50,7 +50,7 @@ class _UtsPageState extends State<UtsPage> {
       // selesai
       return _tasks.where((t) => t.isDone).toList();
     }
-    return _tasks;
+    return _tasks; // semua
   }
 
   int get _activeCount => _tasks.where((t) => !t.isDone).length;
@@ -60,6 +60,20 @@ class _UtsPageState extends State<UtsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFE9F2FF),
+      appBar: AppBar(
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+        centerTitle: true,
+        elevation: 0,
+        title: const Text(
+          "HALAMAN UTS",
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () => Navigator.pop(context), // balik ke dashboard
+        ),
+      ),
       body: SafeArea(
         child: Container(
           width: double.infinity,
@@ -67,32 +81,7 @@ class _UtsPageState extends State<UtsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Tombol menu di kiri atas (dummy)
-            Align(
-              alignment: Alignment.topLeft,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                  onPressed: () {
-                    Navigator.pop(context);  // kembali ke dashboard
-                  },
-                ),
-              ),
-            ),
-
-
-              const SizedBox(height: 32),
+              const SizedBox(height: 8),
 
               // TextField tambah tugas
               Container(
@@ -164,58 +153,19 @@ class _UtsPageState extends State<UtsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Bar biru "Semua" (aktif)
-                    GestureDetector(
-                      onTap: () {
-                        setState(() => _filterIndex = 0);
-                      },
-                      child: Container(
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: _filterIndex == 0
-                              ? primaryColor
-                              : Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        alignment: Alignment.center,
-                        child: const Text(
-                          "Semua",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
+                    _buildFilterButton(
+                      label: "Semua",
+                      index: 0,
                     ),
-                    const SizedBox(height: 12),
-                    GestureDetector(
-                      onTap: () {
-                        setState(() => _filterIndex = 1);
-                      },
-                      child: Text(
-                        "Aktif (${_activeCount})",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontWeight: _filterIndex == 1
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                        ),
-                      ),
+                    const SizedBox(height: 10),
+                    _buildFilterButton(
+                      label: "Aktif (${_activeCount})",
+                      index: 1,
                     ),
-                    const SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: () {
-                        setState(() => _filterIndex = 2);
-                      },
-                      child: Text(
-                        "Selesai (${_doneCount})",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontWeight: _filterIndex == 2
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                        ),
-                      ),
+                    const SizedBox(height: 10),
+                    _buildFilterButton(
+                      label: "Selesai (${_doneCount})",
+                      index: 2,
                     ),
                   ],
                 ),
@@ -304,6 +254,36 @@ class _UtsPageState extends State<UtsPage> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Widget helper untuk tombol filter
+  Widget _buildFilterButton({
+    required String label,
+    required int index,
+  }) {
+    final bool isActive = _filterIndex == index;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() => _filterIndex = index);
+      },
+      child: Container(
+        height: 36,
+        decoration: BoxDecoration(
+          color: isActive ? primaryColor : Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: primaryColor),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isActive ? Colors.white : primaryColor,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
