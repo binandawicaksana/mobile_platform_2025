@@ -21,6 +21,6 @@ class PersegiPanjang {
     return _lebar; // mengembalikan nilai get panjang
   }
   double hitungLuas() {
-    return this._panjang * _lebar; //mereturn hasil
+    return _panjang * _lebar; //mereturn hasil
   }
 }

@@ -11,6 +11,10 @@ void main() {
     print("Nama Lengkap: ${data[1]}");
     print("TTL: ${data[2]} ${data[3]}");
     print("Hobi: ${data[4]}");
+<<<<<<< HEAD
+    print(""); // baris kosong antar data
+=======
     print(""); 
+>>>>>>> 677cabb2098f32105a05e252162ac8387bad9505
   }
 }
