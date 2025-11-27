@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tugasp9_login/login.dart';
+import 'login.dart';
+import 'dashboard.dart';
+import 'register.dart';
 
 void main() {
   runApp(const MyApp());
@@ -11,12 +13,13 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Login Form',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const LoginPage(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const LoginPage(),
+        '/dashboard': (context) => const DashboardPage(),
+        '/register': (context) => const RegisterPage(),
+      },
     );
   }
 }
