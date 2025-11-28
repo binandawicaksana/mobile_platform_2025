@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'login.dart';
-import 'uts_page.dart';
+
+enum DashboardMenuAction { aplikasi, logout }
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -9,6 +9,39 @@ class DashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final evaluations = [
+      const _EvaluationItem(
+        title: "Kemudahan Penggunaan",
+        description:
+            "Antarmuka sederhana dengan navigasi jelas membuat pengguna baru cepat paham.",
+        score: "4.5 / 5",
+      ),
+      const _EvaluationItem(
+        title: "Kinerja Aplikasi",
+        description:
+            "Respons layar cepat dan interaksi terasa mulus bahkan di perangkat low-end.",
+        score: "4.2 / 5",
+      ),
+      const _EvaluationItem(
+        title: "Kelengkapan Fitur",
+        description:
+            "Fitur to-do, filter, FAQ, dan Setting mendukung kebutuhan belajar terpadu.",
+        score: "4.0 / 5",
+      ),
+      const _EvaluationItem(
+        title: "Stabilitas Offline",
+        description:
+            "Ketika koneksi internet bermasalah, data belum tersimpan lokal sehingga tugas bisa hilang.",
+        score: "3.2 / 5",
+      ),
+      const _EvaluationItem(
+        title: "Visualisasi Data",
+        description:
+            "Belum tersedia grafik progreso atau statistik sehingga pengguna sulit membaca tren belajar.",
+        score: "3.0 / 5",
+      ),
+    ];
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -21,6 +54,36 @@ class DashboardPage extends StatelessWidget {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          PopupMenuButton<DashboardMenuAction>(
+            icon: const Icon(Icons.menu_rounded),
+            onSelected: (action) {
+              switch (action) {
+                case DashboardMenuAction.aplikasi:
+                  Navigator.pushNamed(context, '/uts');
+                  break;
+                case DashboardMenuAction.logout:
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/login',
+                    (route) => false,
+                  );
+                  break;
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: DashboardMenuAction.aplikasi,
+                child: Text("Aplikasi"),
+              ),
+              PopupMenuDivider(),
+              PopupMenuItem(
+                value: DashboardMenuAction.logout,
+                child: Text("Logout"),
+              ),
+            ],
+          ),
+        ],
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -42,7 +105,6 @@ class DashboardPage extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Card info user / sambutan
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
@@ -80,46 +142,51 @@ class DashboardPage extends StatelessWidget {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 20),
-
-                    // Menu cards
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _DashboardMenuCard(
-                            icon: Icons.description_outlined,
-                            title: "Halaman UTS",
-                            subtitle: "Buka tampilan tugas UTS kamu",
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const UtsPage(),
-                                ),
-                              );
+                    const SizedBox(height: 24),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.06),
+                            blurRadius: 14,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Ringkasan Penilaian Aplikasi",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            "Berikut umpan balik singkat mengenai kualitas aplikasi UTS ini.",
+                            style: TextStyle(color: Color(0xFF6B7280)),
+                          ),
+                          const SizedBox(height: 16),
+                          ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: evaluations.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final item = evaluations[index];
+                              return _EvaluationCard(item: item);
                             },
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _DashboardMenuCard(
-                            icon: Icons.logout,
-                            title: "Logout",
-                            subtitle: "Kembali ke halaman login",
-                            color: const Color(0xFFEF4444),
-                            onTap: () {
-                              Navigator.pushAndRemoveUntil(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const LoginPage(),
-                                ),
-                                (route) => false,
-                              );
-                            },
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -132,76 +199,85 @@ class DashboardPage extends StatelessWidget {
   }
 }
 
-class _DashboardMenuCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-  final Color color;
-
-  const _DashboardMenuCard({
-    super.key,
-    required this.icon,
+class _EvaluationItem {
+  const _EvaluationItem({
     required this.title,
-    required this.subtitle,
-    required this.onTap,
-    this.color = primaryColor,
+    required this.description,
+    required this.score,
   });
 
-  static const Color primaryColor = Color(0xFF4C6FFF);
+  final String title;
+  final String description;
+  final String score;
+}
+
+class _EvaluationCard extends StatelessWidget {
+  const _EvaluationCard({required this.item});
+
+  final _EvaluationItem item;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFFE5E7EB),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F8FF),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFF4C6FFF).withOpacity(0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.fact_check_outlined,
+              color: Color(0xFF4C6FFF),
+            ),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      item.score,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  item.description,
+                  style: const TextStyle(
+                    color: Color(0xFF4B5563),
+                    height: 1.4,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CircleAvatar(
-              radius: 22,
-              backgroundColor: color.withOpacity(0.08),
-              child: Icon(
-                icon,
-                color: color,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF111827),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Color(0xFF6B7280),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
