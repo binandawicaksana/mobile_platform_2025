@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dashboard.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -37,12 +36,7 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     if (user == registeredUsername && pass == registeredPassword) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const DashboardPage(),
-        ),
-      );
+      Navigator.pushReplacementNamed(context, '/dashboard');
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

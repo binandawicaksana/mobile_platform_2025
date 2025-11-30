@@ -9,28 +9,24 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final TextEditingController _user = TextEditingController();
-  final TextEditingController _pass = TextEditingController();
-  bool _hidePassword = true;
-
   @override
-  void dispose() {
-    _user.dispose();
-    _pass.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    // Hanya langsung masuk jika user masih login (misalnya setelah restart app)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (AuthService.instance.currentUser != null) {
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      }
+    });
   }
 
   void _doLogin() {
-    final u = _user.text.trim();
-    final p = _pass.text.trim();
-
-    final ok = AuthService.instance.login(u, p); // <– simpan currentUser
-
+    final ok = AuthService.instance.loginAuto();
     if (ok) {
       Navigator.pushReplacementNamed(context, '/dashboard');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Username / Password salah')),
+        const SnackBar(content: Text('Gagal login')),
       );
     }
   }
@@ -40,31 +36,40 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       body: Stack(
         children: [
-          // BACKGROUND FULL
+          // BACKGROUND FOTO LOKAL — ganti path sesuai asetmu
           Positioned.fill(
             child: Image.asset(
-              'assets/images/vvb.jpg',
+              'assets/images/brom.jpg',
               fit: BoxFit.cover,
             ),
           ),
 
-          // layer gelap tipis biar card kebaca
+          // LAPISAN GELAP TIPIS supaya teks terbaca
           Positioned.fill(
             child: Container(
               color: Colors.black.withOpacity(0.25),
             ),
           ),
 
-          // CARD LOGIN
+          // CARD LOGIN (ditengah)
           Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withOpacity(0.95),
                   borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.12),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
+                width: double.infinity,
+                constraints: const BoxConstraints(maxWidth: 420),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -76,59 +81,27 @@ class _LoginPageState extends State<LoginPage> {
                         fontSize: 22,
                       ),
                     ),
-                    const SizedBox(height: 20),
-
-                    // USERNAME
-                    TextField(
-                      controller: _user,
-                      decoration: InputDecoration(
-                        labelText: 'Username',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
-                    ),
                     const SizedBox(height: 12),
-
-                    // PASSWORD
-                    TextField(
-                      controller: _pass,
-                      obscureText: _hidePassword,
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _hidePassword
-                                ? Icons.visibility_off
-                                : Icons.visibility,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _hidePassword = !_hidePassword;
-                            });
-                          },
-                        ),
+                    const Text(
+                      'Nikmati pengalaman mendaki tanpa ribet! Dapatkan harga terbaik untuk open trip gunung, penginapan, dan transportasi. Lebih hemat, lebih seru, lebih banyak opsi perjalanan lengkap.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 20),
 
-                    // TOMBOL DAFTAR
+                    // DAFTAR AKUN — terlihat seperti aktif tapi tidak bisa dipencet
                     SizedBox(
                       width: double.infinity,
                       height: 48,
                       child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/register');
-                        },
+                        onPressed: null, // tampil saja, tidak bisa ditekan
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.grey[700],
+                          disabledBackgroundColor: Colors.grey[700],
+                          disabledForegroundColor: Colors.white70,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -138,7 +111,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 12),
 
-                    // TOMBOL MASUK
+                    // MASUK — aktif, langsung masuk
                     SizedBox(
                       width: double.infinity,
                       height: 48,

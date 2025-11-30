@@ -60,7 +60,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
+                children: const [
                   _CategoryButton(emoji: '🐕'),
                   _CategoryButton(emoji: '🐹'),
                   _CategoryButton(emoji: '🐰'),
@@ -90,14 +90,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SizedBox(height: 16),
                       // Album Cards
                       Row(
-                        children: [
+                        children: const [
                           Expanded(
                             child: _AlbumCard(
                               imageUrl: 'https://i.imgur.com/placeholder1.jpg', // Ronaldo placeholder
                               name: 'Ronaldo',
                             ),
                           ),
-                          const SizedBox(width: 16),
+                          SizedBox(width: 16),
                           Expanded(
                             child: _AlbumCard(
                               imageUrl: 'https://i.imgur.com/placeholder2.jpg', // Ronaldowati placeholder
@@ -108,7 +108,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       const SizedBox(height: 24),
                       // Progress Section
-                      _ProgressCard(),
+                      const _ProgressCard(),
                       const SizedBox(height: 80), // Space for bottom nav
                     ],
                   ),
@@ -137,6 +137,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             setState(() {
               _currentIndex = index;
             });
+
+            // jika user men-tap item profil (index 4), buka route profil
+            if (index == 4) {
+              Navigator.of(context).pushNamed('/profil');
+            }
           },
           type: BottomNavigationBarType.fixed,
           backgroundColor: Colors.white,
@@ -299,6 +304,8 @@ class _AlbumCard extends StatelessWidget {
 
 // Progress Card Widget
 class _ProgressCard extends StatelessWidget {
+  const _ProgressCard({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -406,4 +413,3 @@ class _ProgressCard extends StatelessWidget {
     );
   }
 }
-
