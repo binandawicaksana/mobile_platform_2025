@@ -12,7 +12,19 @@ class _DashboardpageState extends State<Dashboardpage> {
   Widget build(BuildContext context) {
     return Padding(
           padding: const EdgeInsets.all(10),
-          child:Text("Ini Halaman Dashboard"),
+          // child:Text("Ini Halaman Dashboard"),
+          child: Column(
+            children: [
+              Text("Ini Halaman Dashboard"),
+              Image.asset('assets/images/logo.png', fit: BoxFit.fitWidth),
+              CircleAvatar(
+                backgroundImage: AssetImage(
+                  'assets/images/logo.png',
+                ), // Ganti dengan path gambar Anda
+                radius: 30,
+              ),
+            ],
+          ),
     );
   }
 }
