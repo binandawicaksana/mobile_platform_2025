@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_10/order_history_page.dart';
+import 'package:flutter_10/profil_page.dart';
 import 'jasa.dart';
+import 'search_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -13,39 +16,67 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+
+    // 🌟 HALAMAN-HALAMAN UNTUK BOTTOM NAV
+    final List<Widget> pages = [
+      _dashboardContent(),     // index 0 -> Dashboard
+      const SearchPage(),      // index 1 -> Pencarian (DESAIN SAMA)
+      const OrderHistoryPage(), 
+      const ProfilePage(),
+    ];
+
     return Scaffold(
       backgroundColor: Colors.white,
 
-      // ================= APP BAR CUSTOM =================
+      // 🌟 BODY MENYESUAIKAN INDEX NAVIGASI
+      body: pages[currentIndex],
+
+      // ================= BOTTOM NAV =================
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: currentIndex,
+        selectedItemColor: Colors.deepPurple,
+        unselectedItemColor: Colors.grey,
+
+        onTap: (i) {
+          setState(() => currentIndex = i);
+        },
+
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: ''),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: ''),
+          BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: ''),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: ''),
+        ],
+      ),
+    );
+  }
+
+  // =======================================================================
+  // 🌟 DASHBOARD CONTENT DIPISAH SUPAYA TIDAK BENTROK DENGAN TAB VIEW
+  // =======================================================================
+
+  Widget _dashboardContent() {
+    return Scaffold(
+      backgroundColor: Colors.white,
+
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
         automaticallyImplyLeading: false,
         title: Row(
           children: [
-            // Foto Profil
             CircleAvatar(
               radius: 22,
-              backgroundImage: AssetImage(
-                "assets/images/foto.jpg", // ganti sesuai file kamu
-              ),
+              backgroundImage: AssetImage("assets/images/foto.jpg"),
             ),
             const SizedBox(width: 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: const [
-                Text(
-                  "Halo!",
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-                Text(
-                  "Fredy",
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text("Halo!", style: TextStyle(fontSize: 14, color: Colors.grey)),
+                Text("Fredy",
+                    style: TextStyle(
+                        fontSize: 18, color: Colors.black, fontWeight: FontWeight.bold)),
               ],
             ),
           ],
@@ -64,7 +95,6 @@ class _DashboardPageState extends State<DashboardPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Search Bar
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
@@ -76,116 +106,94 @@ class _DashboardPageState extends State<DashboardPage> {
                 children: [
                   Icon(Icons.search, color: Colors.grey),
                   SizedBox(width: 10),
-                  Expanded(
-                    child: Text("Cari", style: TextStyle(color: Colors.grey)),
-                  ),
+                  Text("Cari", style: TextStyle(color: Colors.grey)),
                 ],
               ),
             ),
 
             const SizedBox(height: 20),
 
-            // ================= Banner Promo =================
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: const Color(0xff6A5AE0),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      "Dapatkan diskon hingga\n20% Potongan",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 120,
-                    child: Image.asset(
-                      "assets/images/foto.jpg", // Ganti sesuai file kamu
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // ================= Banner =================
+            _banner(),
 
             const SizedBox(height: 10),
-
-            // Indicator Carousel
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                4,
-                (index) => Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  width: index == 0 ? 12 : 8,
-                  height: index == 0 ? 12 : 8,
-                  decoration: BoxDecoration(
-                    color: index == 0
-                        ? Colors.deepPurple
-                        : Colors.grey.shade300,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ),
+            _carouselIndicator(),
 
             const SizedBox(height: 24),
 
-            // ================= UNGGULAN =================
+            // ================= Unggulan =================
             _buildSectionTitle("Unggulan"),
 
             const SizedBox(height: 14),
-
             _buildServiceGrid(),
 
             const SizedBox(height: 30),
 
-            // ================= TERLARIS =================
+            // ================= Terlaris =================
             _buildSectionTitle("Terlaris"),
 
             const SizedBox(height: 14),
-
             _buildServiceGrid(),
           ],
         ),
       ),
+    );
+  }
 
-      // ================= BOTTOM NAV =================
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentIndex,
-        onTap: (i) => setState(() => currentIndex = i),
-        selectedItemColor: Colors.deepPurple,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: ''),
+  // =======================================================================
+  // COMPONENTS
+  // =======================================================================
+
+  Widget _banner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xff6A5AE0),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              "Dapatkan diskon hingga\n20% Potongan",
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ),
+          SizedBox(
+            width: 120,
+            child: Image.asset("assets/images/foto.jpg", fit: BoxFit.cover),
+          ),
         ],
       ),
     );
   }
 
-  // ================================================================
-  // COMPONENTS
-  // ================================================================
+  Widget _carouselIndicator() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(
+        4,
+        (index) => Container(
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          width: index == 0 ? 12 : 8,
+          height: index == 0 ? 12 : 8,
+          decoration: BoxDecoration(
+            color: index == 0 ? Colors.deepPurple : Colors.grey.shade300,
+            shape: BoxShape.circle,
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildSectionTitle(String title) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
+        Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+
+        // Lihat Semua → ke halaman jasa
         TextButton(
           onPressed: () {
             Navigator.push(
@@ -195,11 +203,7 @@ class _DashboardPageState extends State<DashboardPage> {
           },
           child: const Text(
             "Lihat semua",
-            style: TextStyle(
-              color: Colors.blue,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(color: Colors.blue, fontSize: 14, fontWeight: FontWeight.bold),
           ),
         ),
       ],
@@ -233,10 +237,7 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Column(
         children: [
           Expanded(
-            child: Image.asset(
-              "assets/images/foto.jpg", // ganti sesuai file kamu
-              fit: BoxFit.contain,
-            ),
+            child: Image.asset("assets/images/foto.jpg", fit: BoxFit.contain),
           ),
           const SizedBox(height: 8),
           const Text(
