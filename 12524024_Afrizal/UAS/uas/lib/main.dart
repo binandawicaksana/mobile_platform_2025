@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dashboard.dart';
+import 'faq_page.dart';
 import 'login.dart';
+import 'settings_page.dart';
+import 'uts_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -20,7 +24,14 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFFEEF2FF),
       ),
-      home: const LoginPage(),
+      initialRoute: '/login',
+      routes: {
+        '/login': (context) => const LoginPage(),
+        '/dashboard': (context) => const DashboardPage(),
+        '/uts': (context) => const UtsPage(),
+        '/settings': (context) => const SettingsPage(),
+        '/faq': (context) => const FaqPage(),
+      },
     );
   }
 }

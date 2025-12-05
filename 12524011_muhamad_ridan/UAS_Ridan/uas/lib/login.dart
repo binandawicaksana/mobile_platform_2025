@@ -226,12 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: ElevatedButton(
                       onPressed: () {
                         // Navigate to Dashboard
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const DashboardScreen(),
-                          ),
-                        );
+                        Navigator.pushReplacementNamed(context, '/dashboard');
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF1976D2),

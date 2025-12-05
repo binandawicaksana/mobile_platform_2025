@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'widgets/app_drawer.dart';
+
 class UtsPage extends StatefulWidget {
   const UtsPage({super.key});
 
@@ -8,6 +10,7 @@ class UtsPage extends StatefulWidget {
 }
 
 class _UtsPageState extends State<UtsPage> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   static const Color primaryColor = Color(0xFF0057FF);
 
   final TextEditingController _taskController = TextEditingController();
@@ -59,6 +62,7 @@ class _UtsPageState extends State<UtsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: const Color(0xFFE9F2FF),
       appBar: AppBar(
         backgroundColor: primaryColor,
@@ -70,9 +74,13 @@ class _UtsPageState extends State<UtsPage> {
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          onPressed: () => Navigator.pop(context), // balik ke dashboard
+          icon: const Icon(Icons.menu_rounded),
+          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
         ),
+      ),
+      drawer: AppDrawer(
+        activeDestination: DrawerDestination.aplikasi,
+        onGoToDashboard: () => Navigator.of(context).maybePop(),
       ),
       body: SafeArea(
         child: Container(
@@ -288,7 +296,8 @@ class _UtsPageState extends State<UtsPage> {
         ),
       ),
     );
-  }
+}
+
 }
 
 class _TodoTask {

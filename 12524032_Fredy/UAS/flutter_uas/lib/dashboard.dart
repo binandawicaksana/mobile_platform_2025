@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'jasa.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -44,7 +45,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     color: Colors.black,
                     fontWeight: FontWeight.bold,
                   ),
-                )
+                ),
               ],
             ),
           ],
@@ -76,11 +77,8 @@ class _DashboardPageState extends State<DashboardPage> {
                   Icon(Icons.search, color: Colors.grey),
                   SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      "Cari",
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  )
+                    child: Text("Cari", style: TextStyle(color: Colors.grey)),
+                  ),
                 ],
               ),
             ),
@@ -113,7 +111,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       "assets/images/foto.jpg", // Ganti sesuai file kamu
                       fit: BoxFit.cover,
                     ),
-                  )
+                  ),
                 ],
               ),
             ),
@@ -167,22 +165,10 @@ class _DashboardPageState extends State<DashboardPage> {
         selectedItemColor: Colors.deepPurple,
         unselectedItemColor: Colors.grey,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_rounded),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_bag),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: '',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: ''),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: ''),
+          BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: ''),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: ''),
         ],
       ),
     );
@@ -198,16 +184,22 @@ class _DashboardPageState extends State<DashboardPage> {
       children: [
         Text(
           title,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
-        const Text(
-          "Lihat semua",
-          style: TextStyle(
-            color: Colors.blue,
-            fontSize: 14,
+        TextButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const JasaPage()),
+            );
+          },
+          child: const Text(
+            "Lihat semua",
+            style: TextStyle(
+              color: Colors.blue,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ],

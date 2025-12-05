@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dashboard.dart'; // pastikan nama file dashboard.dart
+import 'dashboard.dart'; // berisi OnboardingScreen & DashboardScreen
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -142,11 +142,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           onPressed: () {
-                            // langsung ke dashboard (kalau mau bisa ditambah validasi)
+                            // TODO: kalau mau, tambahkan validasi username/password di sini
+
+                            // Setelah login, masuk ke layar pesawat (OnboardingScreen)
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const DashboardScreen(),
+                                builder: (context) =>
+                                    const OnboardingScreen(),
                               ),
                             );
                           },

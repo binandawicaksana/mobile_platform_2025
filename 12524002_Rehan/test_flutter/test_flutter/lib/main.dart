@@ -178,7 +178,7 @@ class _LoginPageState extends State<LoginPage> {
                                 final username = _usernameController.text.trim();
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('Login sebagai: ' + username),
+                                    content: Text('Login sebagai: $username'),
                                     behavior: SnackBarBehavior.floating,
                                   ),
                                 );

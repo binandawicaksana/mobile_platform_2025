@@ -1,8 +1,29 @@
 import 'package:flutter/material.dart';
 import 'auth_service.dart';
+import 'deskripsi.dart';
 
-class DashboardPage extends StatelessWidget {
+class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
+
+  @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  late final TextEditingController _avatarController;
+
+  @override
+  void initState() {
+    super.initState();
+    _avatarController =
+        TextEditingController(text: AuthService.instance.avatarRef);
+  }
+
+  @override
+  void dispose() {
+    _avatarController.dispose();
+    super.dispose();
+  }
 
   void _logout(BuildContext context) {
     AuthService.instance.logout(); // kosongkan user
@@ -13,9 +34,61 @@ class DashboardPage extends StatelessWidget {
     );
   }
 
+  Future<void> _changeAvatar() async {
+    _avatarController.text = AuthService.instance.avatarRef;
+    final newUrl = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Ubah Foto Profil'),
+          content: TextField(
+            controller: _avatarController,
+            decoration: const InputDecoration(
+              labelText: 'Link gambar (URL)',
+              hintText: 'https://contoh.com/foto.jpg',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                AuthService.instance.resetAvatarToDefault();
+                Navigator.of(context).pop(AuthService.instance.avatarRef);
+              },
+              child: const Text('Foto default'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context)
+                  .pop(_avatarController.text.trim()),
+              child: const Text('Simpan'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (newUrl != null && newUrl.isNotEmpty) {
+      setState(() {
+        AuthService.instance.updateAvatar(newUrl);
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto profil diperbarui')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final username = AuthService.instance.currentUser ?? 'User';
+    final username = AuthService.instance.displayName;
+    final avatarImage = AuthService.instance.avatarIsAsset
+        ? AssetImage(AuthService.instance.avatarRef)
+            as ImageProvider<Object>
+        : NetworkImage(AuthService.instance.avatarRef);
 
     final categories = [
       {'icon': Icons.flight, 'label': 'Pesawat'},
@@ -33,13 +106,21 @@ class DashboardPage extends StatelessWidget {
         'title': 'Mt Agung',
         'distance': '1.050 km',
         'image':
-            'https://images.pexels.com/photos/1434608/pexels-photo-1434608.jpeg?auto=compress&cs=tinysrgb&w=800',
+            'assets/images/f.jpg',
+        'lokasi': 'Karangasem, Bali',
+        'deskripsi': '''Gunung Agung adalah gunung tertinggi dan paling sakral di Bali, menjulang megah hingga lebih dari 3.000 meter di atas permukaan laut. Gunung ini dikenal dengan pemandangan matahari terbit yang menakjubkan dan jalur pendakian yang menantang, menjadikannya destinasi favorit para petualang. Meski perjalanan menuju puncak membutuhkan stamina dan kesiapan fisik, setiap langkah akan terbayar dengan panorama Bali dari ketinggian yang luar biasa. Jika kamu sedang merencanakan perjalanan ke Bali, mendaki Gunung Agung bisa menjadi pengalaman spiritual dan alam yang tak terlupakan.''',
+        'isAgung': true,
       },
       {
         'title': 'Mt GedePangrango',
         'distance': '37 km',
         'image':
-            'https://images.pexels.com/photos/2404370/pexels-photo-2404370.jpeg?auto=compress&cs=tinysrgb&w=800',
+            'assets/images/g.jpg',
+        'lokasi': 'Taman Nasional Gede Pangrango',
+        'deskripsi': '''Gunung Gede Pangrango adalah salah satu gunung paling populer di Jawa Barat, terletak di kawasan Taman Nasional Gunung Gede Pangrango. Dengan dua puncak ikonik—Gunung Gede dan Gunung Pangrango—gunung ini menawarkan keindahan alam yang memukau, hutan tropis yang rimbun, serta udara pegunungan yang sejuk. Jalur pendakiannya menantang namun tetap bersahabat, cocok untuk pendaki pemula maupun berpengalaman.
+
+Dari puncak, kamu bisa menikmati pemandangan kawah, lautan awan, hingga panorama kota di kejauhan. Jika kamu mencari petualangan alam yang dekat dari Jakarta atau Bogor, Gunung Gede Pangrango siap menyajikan pengalaman mendaki yang lengkap dan berkesan.''',
+        'isAgung': false,
       },
     ];
 
@@ -79,14 +160,14 @@ class DashboardPage extends StatelessWidget {
                                   Icon(
                                     Icons.location_on_outlined,
                                     size: 16,
-                                    color: Colors.white,
+                                    color: Colors.black54,
                                   ),
                                   SizedBox(width: 4),
                                   Text(
                                     'Bogor, Indonesia',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.white,
+                                      color: Colors.black,
                                     ),
                                   ),
                                 ],
@@ -111,10 +192,11 @@ class DashboardPage extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 10),
-                            const CircleAvatar(
-                              radius: 18,
-                              backgroundImage: NetworkImage(
-                                'https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=200',
+                            GestureDetector(
+                              onTap: _changeAvatar,
+                              child: CircleAvatar(
+                                radius: 18,
+                                backgroundImage: avatarImage,
                               ),
                             ),
                             const SizedBox(width: 6),
@@ -260,6 +342,19 @@ class DashboardPage extends StatelessWidget {
                             title: dest['title'] as String,
                             distance: dest['distance'] as String,
                             imageUrl: dest['image'] as String,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => DeskripsiPage(
+                                    namaGunung: dest['title'] as String,
+                                    lokasi: dest['lokasi'] as String,
+                                    deskripsi: dest['deskripsi'] as String,
+                                    isAgung: dest['isAgung'] as bool,
+                                  ),
+                                ),
+                              );
+                            },
                           );
                         },
                       ),
@@ -325,118 +420,127 @@ class _DestinationCard extends StatelessWidget {
   final String title;
   final String distance;
   final String imageUrl;
+  final VoidCallback onTap;
 
   const _DestinationCard({
     required this.title,
     required this.distance,
     required this.imageUrl,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 180,
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.12),
-            blurRadius: 10,
-            offset: const Offset(0, 6),
+        onTap: onTap,
+        child: Container(
+          width: 180,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.12),
+                blurRadius: 10,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // FOTO + LOVE
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(18),
-              topRight: Radius.circular(18),
-            ),
-            child: Stack(
-              children: [
-                SizedBox(
-                  height: 120,
-                  width: double.infinity,
-                  child: Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                  ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // FOTO + LOVE
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(18),
+                  topRight: Radius.circular(18),
                 ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.favorite_border,
-                      size: 18,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // TEKS & AVATAR
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  distance,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: const [
-                    CircleAvatar(
-                      radius: 8,
-                      backgroundImage: NetworkImage(
-                        'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=100',
+                child: Stack(
+                  children: [
+                    SizedBox(
+                      height: 120,
+                      width: double.infinity,
+                      child: Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
                       ),
                     ),
-                    SizedBox(width: 4),
-                    CircleAvatar(
-                      radius: 8,
-                      backgroundImage: NetworkImage(
-                        'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100',
-                      ),
-                    ),
-                    SizedBox(width: 4),
-                    CircleAvatar(
-                      radius: 8,
-                      backgroundImage: NetworkImage(
-                        'https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg?auto=compress&cs=tinysrgb&w=100',
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.favorite_border,
+                          size: 18,
+                          color: Colors.black87,
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+
+              // TEKS & AVATAR
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      distance,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: const [
+                        CircleAvatar(
+                          radius: 8,
+                          backgroundImage: NetworkImage(
+                            'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=100',
+                          ),
+                        ),
+                        SizedBox(width: 4),
+                        CircleAvatar(
+                          radius: 8,
+                          backgroundImage: NetworkImage(
+                            'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100',
+                          ),
+                        ),
+                        SizedBox(width: 4),
+                        CircleAvatar(
+                          radius: 8,
+                          backgroundImage: NetworkImage(
+                            'https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg?auto=compress&cs=tinysrgb&w=100',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
