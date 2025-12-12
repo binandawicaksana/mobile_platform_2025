@@ -20,15 +20,9 @@ class _LoginPageState extends State<LoginPage> {
           // Background lengkung di bawah
           Align(
             alignment: Alignment.bottomCenter,
-            child: Container(
-              height: 200,
-              decoration: const BoxDecoration(
-                color: Color(0xFF6A5AE0),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(120),
-                  topRight: Radius.circular(120),
-                ),
-              ),
+            child: ClipPath(
+              clipper: BottomCurveClipper(),
+              child: Container(height: 220, color: const Color(0xFF6A5AE0)),
             ),
           ),
 
@@ -231,4 +225,24 @@ class _LoginPageState extends State<LoginPage> {
       child: Icon(icon, color: color, size: 28),
     );
   }
+}
+
+class BottomCurveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    Path path = Path();
+
+    path.lineTo(0, 60);
+
+    path.quadraticBezierTo(size.width / 2, 0, size.width, 60);
+
+    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height);
+    path.close();
+
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
