@@ -1,6 +1,43 @@
-import 'package:flutter/material.dart';
+library expense_mockup;
 
-void main() {
+import 'dart:convert';
+import 'dart:io' show Platform, File;
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+import 'package:uas/data/expense_repository.dart';
+import 'package:uas/data/models.dart';
+import 'package:uas/data/user_repository.dart';
+import 'package:uas/services/gemini_ocr_service.dart';
+import 'package:uas/services/local_ocr_service.dart';
+import 'package:uas/theme/mockup_colors.dart';
+import 'package:uas/utils/currency_formatter.dart';
+import 'package:sqflite/sqflite.dart' as sqflite;
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+part 'screens/auth_screen.dart';
+part 'screens/dashboard_screen.dart';
+part 'screens/scan_bill_screen.dart';
+part 'screens/history_screen.dart';
+part 'screens/layout_showcase_screen.dart';
+part 'screens/transaction_screens.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  if (!kIsWeb) {
+    final envFile = File('.env');
+    if (envFile.existsSync()) {
+      await dotenv.load(fileName: '.env');
+    }
+  }
+  if (!kIsWeb &&
+      (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+    sqfliteFfiInit();
+    sqflite.databaseFactory = databaseFactoryFfi;
+  }
   runApp(const ExpenseMockupApp());
 }
 
@@ -33,13 +70,46 @@ class _ExpenseHomePageState extends State<ExpenseHomePage> {
   int _currentIndex = 0;
   bool _isAuthenticated = false;
   bool _isLoginMode = true;
+  final ExpenseRepository _repository = ExpenseRepository();
+  final UserRepository _userRepository = UserRepository();
+  static const String _defaultEmail = 'demo@uas.app';
+  static const String _defaultPassword = '123456';
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeAuthState();
+  }
+
+  Future<void> _initializeAuthState() async {
+    var hasUser = await _userRepository.hasAnyUser();
+    if (!hasUser) {
+      try {
+        await _userRepository.register(
+          name: 'Demo User',
+          email: _defaultEmail,
+          password: _defaultPassword,
+          initialBalance: 1000000,
+        );
+        hasUser = true;
+      } catch (_) {
+        hasUser = await _userRepository.hasAnyUser();
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _isLoginMode = hasUser;
+    });
+  }
+
+  @override
+  void dispose() {
+    _repository.dispose();
+    super.dispose();
+  }
 
   void _onItemSelected(int index) {
     setState(() => _currentIndex = index);
-  }
-
-  void _handleAuthSuccess() {
-    setState(() => _isAuthenticated = true);
   }
 
   void _toggleAuthMode() {
@@ -47,6 +117,7 @@ class _ExpenseHomePageState extends State<ExpenseHomePage> {
   }
 
   void _handleLogout() {
+    _repository.clearUser();
     setState(() {
       _isAuthenticated = false;
       _isLoginMode = true;
@@ -54,18 +125,103 @@ class _ExpenseHomePageState extends State<ExpenseHomePage> {
     });
   }
 
+  Future<void> _handleAuthSubmit(AuthFormData data) async {
+    FocusScope.of(context).unfocus();
+    try {
+      UserAccount user;
+      if (data.mode == AuthMode.login) {
+        user = await _userRepository.login(
+          email: data.email,
+          password: data.password,
+        );
+      } else {
+        if (data.password != data.confirmPassword) {
+          throw AuthException('Konfirmasi password tidak sama.');
+        }
+        user = await _userRepository.register(
+          name: data.fullName!.trim(),
+          email: data.email,
+          password: data.password,
+          initialBalance: data.initialBalance ?? 0,
+        );
+        setState(() => _isLoginMode = true);
+      }
+
+      await _repository.setActiveUser(user);
+      if (!mounted) return;
+      setState(() {
+        _isAuthenticated = true;
+        _currentIndex = 0;
+      });
+    } on AuthException catch (error) {
+      if (!mounted) return;
+      debugPrint('Autentikasi gagal: ${error.message}');
+    } catch (error) {
+      if (!mounted) return;
+      debugPrint('Terjadi kesalahan: $error');
+    }
+  }
+
+  Future<void> _openSetBalancePage() async {
+    if (!_repository.isInitialized) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black54,
+      builder: (context) {
+        return PhoneSheetWrapper(
+          child: InitialBalanceScreen(
+            initialValue: _repository.initialBalance,
+            onSubmit: (value) => _repository.updateInitialBalance(value),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openTransactionPage({
+    TransactionType initialType = TransactionType.expense,
+  }) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black54,
+      builder: (context) {
+        return PhoneSheetWrapper(
+          child: AddTransactionScreen(
+            categories: _repository.categories,
+            initialType: initialType,
+            onSubmit: (transaction) => _repository.addTransaction(transaction),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildScreen(int index) {
     switch (index) {
       case 0:
-        return const DashboardScreen();
+        return DashboardScreen(
+          repository: _repository,
+          onAddTransaction: () =>
+              _openTransactionPage(initialType: TransactionType.expense),
+          onSetInitialBalance: _openSetBalancePage,
+        );
       case 1:
-        return const ScanBillScreen();
+        return ScanBillScreen(repository: _repository);
       case 2:
-        return const HistoryScreen();
+        return HistoryScreen(repository: _repository);
       case 3:
-        return const LayoutShowcaseScreen();
+        return LayoutShowcaseScreen(repository: _repository);
       default:
-        return const DashboardScreen();
+        return DashboardScreen(
+          repository: _repository,
+          onAddTransaction: () =>
+              _openTransactionPage(initialType: TransactionType.expense),
+          onSetInitialBalance: _openSetBalancePage,
+        );
     }
   }
 
@@ -98,12 +254,13 @@ class _ExpenseHomePageState extends State<ExpenseHomePage> {
                       onItemSelected: _onItemSelected,
                       currentIndex: _currentIndex,
                       onLogout: _handleLogout,
+                      user: _repository.currentUser,
                     )
                   : _AuthView(
                       key: ValueKey('auth-$_isLoginMode'),
                       child: AuthScreen(
                         isLogin: _isLoginMode,
-                        onSubmit: _handleAuthSuccess,
+                        onSubmit: _handleAuthSubmit,
                         onToggleMode: _toggleAuthMode,
                       ),
                     ),
@@ -122,12 +279,14 @@ class _MainAppView extends StatelessWidget {
     required this.onItemSelected,
     required this.currentIndex,
     required this.onLogout,
+    required this.user,
   });
 
   final Widget screen;
   final ValueChanged<int> onItemSelected;
   final int currentIndex;
   final VoidCallback onLogout;
+  final UserAccount? user;
 
   @override
   Widget build(BuildContext context) {
@@ -137,6 +296,7 @@ class _MainAppView extends StatelessWidget {
         currentIndex: currentIndex,
         onNavigate: onItemSelected,
         onLogout: onLogout,
+        user: user,
       ),
       body: Builder(
         builder: (context) {
@@ -169,12 +329,7 @@ class _AuthView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const StatusBar(),
-        Expanded(child: child),
-      ],
-    );
+    return child;
   }
 }
 
@@ -225,1432 +380,40 @@ class StatusBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 6),
-      child: Row(
-        children: [
-          if (onMenuTap != null)
-            IconButton(
-              onPressed: onMenuTap,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              icon: const Icon(
-                Icons.menu,
-                size: 20,
-                color: MockupColors.textSecondary,
-              ),
-            ),
-          if (onMenuTap != null) const SizedBox(width: 8),
-          const Text(
-            '09:41',
-            style: TextStyle(
-              fontSize: 12,
-              color: MockupColors.textSecondary,
-            ),
-          ),
-          const Spacer(),
-          const Text(
-            '5G 100%',
-            style: TextStyle(
-              fontSize: 12,
-              color: MockupColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class AuthScreen extends StatelessWidget {
-  const AuthScreen({
-    super.key,
-    required this.isLogin,
-    required this.onSubmit,
-    required this.onToggleMode,
-  });
-
-  final bool isLogin;
-  final VoidCallback onSubmit;
-  final VoidCallback onToggleMode;
-
-  @override
-  Widget build(BuildContext context) {
-    final title = isLogin ? 'Masuk' : 'Daftar';
-    final subtitle = isLogin
-        ? 'Selamat datang kembali! Masuk untuk lanjut ke dashboard.'
-        : 'Buat akun baru agar pengeluaranmu lebih teratur.';
-    final actionLabel = isLogin ? 'Masuk Sekarang' : 'Buat Akun';
-    final toggleLabel =
-        isLogin ? 'Belum punya akun? Daftar' : 'Sudah punya akun? Masuk';
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 32),
-          Text(
-            'Self track.\nStay on budget.',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: MockupColors.blueDark,
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Kelola pemasukan dan pengeluaranmu lewat aplikasi ini.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: MockupColors.textSecondary,
-                ),
-          ),
-          const SizedBox(height: 32),
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.95),
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 30,
-                  offset: const Offset(0, 18),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    color: MockupColors.blueDark,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: MockupColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                if (!isLogin) ...[
-                  const AuthTextField(
-                    label: 'Nama Lengkap',
-                    keyboardType: TextInputType.name,
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                const AuthTextField(
-                  label: 'Email',
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 16),
-                const AuthTextField(
-                  label: 'Password',
-                  obscureText: true,
-                ),
-                if (!isLogin) ...[
-                  const SizedBox(height: 16),
-                  const AuthTextField(
-                    label: 'Konfirmasi Password',
-                    obscureText: true,
-                  ),
-                ],
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: MockupColors.blueDark,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  onPressed: onSubmit,
-                  child: Text(
-                    actionLabel,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: onToggleMode,
-                  child: Text(
-                    toggleLabel,
-                    style: const TextStyle(
-                      color: MockupColors.blueDark,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: const [
-                    Icon(Icons.verified_user, size: 18, color: MockupColors.mutedBlue),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Data kamu terenkripsi dan aman. Kamu bisa ubah profil kapan pun.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: MockupColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class AuthTextField extends StatelessWidget {
-  const AuthTextField({
-    super.key,
-    required this.label,
-    this.obscureText = false,
-    this.keyboardType,
-  });
-
-  final String label;
-  final bool obscureText;
-  final TextInputType? keyboardType;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: MockupColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 6),
-        TextField(
-          obscureText: obscureText,
-          keyboardType: keyboardType,
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(
-                color: MockupColors.borderBase.withOpacity(0.4),
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: MockupColors.blueDark, width: 1.4),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: const [
-          AppHeader(
-            subtitle: 'Halo kembali,',
-            title: 'Rafid Akmal',
-            trailing: AddButton(),
-          ),
-          SummaryCard(
-            label: 'Saldo Bersih',
-            amount: 'Rp 12.560.000',
-            footerLeft: 'Pengeluaran Minggu Ini',
-            footerRight: '-12% dibandingkan minggu lalu',
-          ),
-          SizedBox(height: 18),
-          InfoCard(
-            title: 'Pengeluaran per Kategori',
-            child: BarChart(
-              bars: [
-                BarEntry(label: 'Mkn', value: '420K', percent: 0.42),
-                BarEntry(label: 'Tagihan', value: '680K', percent: 0.68),
-                BarEntry(label: 'Transport', value: '560K', percent: 0.56),
-                BarEntry(label: 'Belanja', value: '320K', percent: 0.32),
-                BarEntry(label: 'Lain', value: '240K', percent: 0.24),
-              ],
-            ),
-          ),
-          SizedBox(height: 18),
-          InfoCard(
-            title: 'Anggaran Kategori',
-            child: Column(
-              children: [
-                CategoryBudgetRow(
-                  entry: CategoryBudgetEntry(
-                    name: 'Makan & Minum',
-                    detail: '72% dari Rp 2jt',
-                    percent: 0.72,
-                    color: MockupColors.accentOrange,
-                  ),
-                ),
-                SizedBox(height: 14),
-                CategoryBudgetRow(
-                  entry: CategoryBudgetEntry(
-                    name: 'Transportasi',
-                    detail: '48% dari Rp 1,5jt',
-                    percent: 0.48,
-                    color: MockupColors.accentPurple,
-                  ),
-                ),
-                SizedBox(height: 14),
-                CategoryBudgetRow(
-                  entry: CategoryBudgetEntry(
-                    name: 'Tagihan Bulanan',
-                    detail: '64% dari Rp 3jt',
-                    percent: 0.64,
-                    color: MockupColors.accentGreen,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 20),
-          InsightButton(),
-        ],
-      ),
-    );
-  }
-}
-
-class ScanBillScreen extends StatelessWidget {
-  const ScanBillScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: const [
-          AppHeader(
-            subtitle: 'Mode',
-            title: 'Scan Bill',
-            trailing: AvatarBadge(initials: 'RP'),
-          ),
-          CameraActionsRow(labels: ['Import', 'Riwayat Scan']),
-          SizedBox(height: 12),
-          CameraPreview(),
-          SizedBox(height: 16),
-          CameraControls(),
-          SizedBox(height: 16),
-          OcrPreview(
-            details: [
-              'Merchant: Coffee Bloom',
-              'Tanggal: 12 Apr 2024',
-              'Total: Rp 58.000',
-              'Metode: Kartu Debit',
-            ],
-            actions: [
-              OcrAction(label: 'Edit'),
-              OcrAction(label: 'Simpan', primary: true),
-              OcrAction(label: 'Tambah Kategori'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class HistoryScreen extends StatelessWidget {
-  const HistoryScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: const [
-          AppHeader(
-            subtitle: 'Laporan',
-            title: 'History',
-            trailing: AddButton(),
-          ),
-          FilterTabs(
-            tabs: ['Minggu', 'Bulan', 'Tahun'],
-            activeIndex: 0,
-          ),
-          SizedBox(height: 12),
-          FilterRow(
-            filters: [
-              FilterChipData(label: 'Kategori', value: 'Makan'),
-              FilterChipData(label: 'Metode', value: 'Kartu'),
-            ],
-          ),
-          SizedBox(height: 12),
-          SearchBox(
-            placeholder: 'Cari transaksi, merchant, atau nominal',
-          ),
-          SizedBox(height: 20),
-          TransactionGroupWidget(
-            group: TransactionGroupData(
-              label: 'SENIN, 12 APR',
-              items: [
-                TransactionItem(
-                  title: 'Lunch Meeting',
-                  category: 'Food & Beverage',
-                  amount: '-Rp 125.000',
-                ),
-                TransactionItem(
-                  title: 'Gojek Airport',
-                  category: 'Transport',
-                  amount: '-Rp 85.000',
-                  attachment: '+ Bill',
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 18),
-          TransactionGroupWidget(
-            group: TransactionGroupData(
-              label: 'MINGGU, 11 APR',
-              items: [
-                TransactionItem(
-                  title: 'Subscription Netflix',
-                  category: 'Entertainment',
-                  amount: '-Rp 186.000',
-                ),
-                TransactionItem(
-                  title: 'Grocery Weekend',
-                  category: 'Daily Needs',
-                  amount: '-Rp 312.000',
-                  attachment: '+ Foto',
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class LayoutShowcaseScreen extends StatelessWidget {
-  const LayoutShowcaseScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    const quickActions = <_QuickActionData>[
-      _QuickActionData(
-        label: 'Set Budget',
-        icon: Icons.account_balance_wallet_outlined,
-        color: MockupColors.accentPurple,
-      ),
-      _QuickActionData(
-        label: 'Upload Nota',
-        icon: Icons.receipt_long,
-        color: MockupColors.accentOrange,
-      ),
-      _QuickActionData(
-        label: 'Tambah Catatan',
-        icon: Icons.edit_note,
-        color: MockupColors.blueDark,
-      ),
-      _QuickActionData(
-        label: 'Tag Tim',
-        icon: Icons.group_add,
-        color: MockupColors.accentGreen,
-      ),
-    ];
-
-    const highlights = <_ShowcaseHighlight>[
-      _ShowcaseHighlight(
-        title: 'Total Pengeluaran',
-        value: 'Rp 2,8 jt',
-        subtitle: '+12% dari bulan lalu',
-        color: MockupColors.blueDark,
-      ),
-      _ShowcaseHighlight(
-        title: 'Anggaran Tersisa',
-        value: 'Rp 1,2 jt',
-        subtitle: 'Untuk 9 hari ke depan',
-        color: MockupColors.accentGreen,
-      ),
-    ];
-
-    const activities = <_ShowcaseActivityData>[
-      _ShowcaseActivityData(
-        title: 'Bayar sewa kantor',
-        category: 'Operasional',
-        amount: '-Rp 2.400.000',
-        time: 'Hari ini · 09:20',
-        accent: MockupColors.accentOrange,
-      ),
-      _ShowcaseActivityData(
-        title: 'Langganan Figma',
-        category: 'Software',
-        amount: '-Rp 450.000',
-        time: 'Kemarin · 15:03',
-        accent: MockupColors.accentPurple,
-      ),
-      _ShowcaseActivityData(
-        title: 'Bonus proyek',
-        category: 'Pemasukan',
-        amount: '+Rp 3.000.000',
-        time: 'Kemarin · 10:11',
-        accent: MockupColors.accentGreen,
-      ),
-    ];
-
-    const categories = <_ShowcaseCategoryData>[
-      _ShowcaseCategoryData(
-        name: 'Transport',
-        total: 'Rp 320 rb',
-        icon: Icons.directions_car,
-        color: MockupColors.accentPurple,
-      ),
-      _ShowcaseCategoryData(
-        name: 'Langganan',
-        total: 'Rp 450 rb',
-        icon: Icons.subscriptions,
-        color: MockupColors.accentOrange,
-      ),
-      _ShowcaseCategoryData(
-        name: 'Makan',
-        total: 'Rp 780 rb',
-        icon: Icons.restaurant,
-        color: MockupColors.accentRed,
-      ),
-      _ShowcaseCategoryData(
-        name: 'Hiburan',
-        total: 'Rp 215 rb',
-        icon: Icons.movie_outlined,
-        color: MockupColors.blueLight,
-      ),
-    ];
-
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        foregroundColor: MockupColors.blueDark,
-        title: const Text(
-          'Layout Explorer',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Segarkan data',
-            icon: const Icon(Icons.refresh),
-            onPressed: () =>
-                _showActionMessage(context, 'Data terbaru sudah disinkronkan'),
-          ),
-        ],
-      ),
-      body: CustomScrollView(
-        slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate(
-                [
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isWide = constraints.maxWidth >= 320;
-                      final cardWidth = isWide
-                          ? (constraints.maxWidth - 16) / 2
-                          : constraints.maxWidth;
-                      return Wrap(
-                        spacing: 16,
-                        runSpacing: 16,
-                        children: [
-                          for (final highlight in highlights)
-                            SizedBox(
-                              width: cardWidth,
-                              child: _LayoutHighlightCard(data: highlight),
-                            ),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  const _SectionTitle('Aktivitas Terbaru'),
-                  const SizedBox(height: 12),
-                  const _QuickActionList(actions: quickActions),
-                  const SizedBox(height: 16),
-                  ...activities.map(
-                    (activity) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _LayoutActivityTile(data: activity),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const _SectionTitle('Kategori Populer'),
-                  const SizedBox(height: 12),
-                ],
-              ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            sliver: SliverGrid(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) =>
-                    _LayoutCategoryTile(data: categories[index]),
-                childCount: categories.length,
-              ),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1.15,
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 40)),
-        ],
-      ),
-    );
-  }
-
-  void _showActionMessage(BuildContext context, String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-  }
-}
-
-class _LayoutHighlightCard extends StatelessWidget {
-  const _LayoutHighlightCard({required this.data});
-
-  final _ShowcaseHighlight data;
-
-  @override
-  Widget build(BuildContext context) {
+    final hasMenu = onMenuTap != null;
     return Container(
-      height: 150,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        color: data.color.withOpacity(0.08),
-        border: Border.all(
-          color: MockupColors.borderBase.withOpacity(0.1),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            data.title,
-            style: const TextStyle(
-              fontSize: 13,
-              color: MockupColors.textSecondary,
-            ),
-          ),
-          const Spacer(),
-          Text(
-            data.value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: data.color,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            data.subtitle,
-            style: const TextStyle(
-              fontSize: 12,
-              color: MockupColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AppDrawer extends StatelessWidget {
-  const _AppDrawer({
-    required this.currentIndex,
-    required this.onNavigate,
-    required this.onLogout,
-  });
-
-  final int currentIndex;
-  final ValueChanged<int> onNavigate;
-  final VoidCallback onLogout;
-
-  static const _items = [
-    _DrawerItem(
-      label: 'Dashboard',
-      icon: Icons.space_dashboard_outlined,
-    ),
-    _DrawerItem(
-      label: 'Scan Bill',
-      icon: Icons.qr_code_scanner,
-    ),
-    _DrawerItem(
-      label: 'History',
-      icon: Icons.receipt_long,
-    ),
-    _DrawerItem(
-      label: 'Layouts',
-      icon: Icons.grid_view,
-    ),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Drawer(
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const ListTile(
-              leading: CircleAvatar(
-                radius: 24,
-                backgroundColor: MockupColors.blueDark,
-                child: Text(
-                  'RA',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              title: Text(
-                'Rafid Akmal',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text('rafid.akmal@contoh.id'),
-            ),
-            const Divider(),
-            for (var i = 0; i < _items.length; i++)
-              ListTile(
-                leading: Icon(
-                  _items[i].icon,
-                  color: i == currentIndex
-                      ? MockupColors.blueDark
-                      : MockupColors.textSecondary,
-                ),
-                title: Text(
-                  _items[i].label,
-                  style: TextStyle(
-                    fontWeight: i == currentIndex ? FontWeight.w600 : FontWeight.w500,
-                  ),
-                ),
-                selected: i == currentIndex,
-                onTap: () {
-                  Navigator.of(context).pop();
-                  onNavigate(i);
-                },
-              ),
-            const Spacer(),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Logout'),
-              onTap: () {
-                Navigator.of(context).pop();
-                onLogout();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DrawerItem {
-  const _DrawerItem({required this.label, required this.icon});
-
-  final String label;
-  final IconData icon;
-}
-
-class _QuickActionList extends StatelessWidget {
-  const _QuickActionList({super.key, required this.actions});
-
-  final List<_QuickActionData> actions;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 88,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: actions.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          return _QuickActionCard(data: actions[index]);
-        },
-      ),
-    );
-  }
-}
-
-class _QuickActionCard extends StatelessWidget {
-  const _QuickActionCard({required this.data});
-
-  final _QuickActionData data;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 130,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        color: data.color.withOpacity(0.08),
-        border: Border.all(
-          color: data.color.withOpacity(0.18),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: data.color.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              data.icon,
-              color: data.color,
-              size: 18,
-            ),
-          ),
-          const Spacer(),
-          Text(
-            data.label,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: MockupColors.blueDark,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LayoutActivityTile extends StatelessWidget {
-  const _LayoutActivityTile({required this.data});
-
-  final _ShowcaseActivityData data;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        color: Colors.white,
-        border: Border.all(
-          color: MockupColors.borderBase.withOpacity(0.16),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: data.accent.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            alignment: Alignment.center,
-            child: Icon(
-              data.amount.startsWith('+') ? Icons.trending_up : Icons.trending_down,
-              color: data.accent,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  data.title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: MockupColors.blueDark,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${data.category} · ${data.time}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: MockupColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          Flexible(
-            child: Text(
-              data.amount,
-              maxLines: 1,
-              textAlign: TextAlign.right,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: data.amount.startsWith('+')
-                    ? MockupColors.accentGreen
-                    : MockupColors.accentRed,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LayoutCategoryTile extends StatelessWidget {
-  const _LayoutCategoryTile({required this.data});
-
-  final _ShowcaseCategoryData data;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: Colors.white,
-        border: Border.all(
-          color: MockupColors.borderBase.withOpacity(0.12),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: data.color.withOpacity(0.14),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(
-              data.icon,
-              color: data.color,
-            ),
-          ),
-          const Spacer(),
-          Text(
-            data.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: MockupColors.blueDark,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            data.total,
-            style: const TextStyle(
-              fontSize: 12,
-              color: MockupColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuickActionData {
-  const _QuickActionData({
-    required this.label,
-    required this.icon,
-    required this.color,
-  });
-
-  final String label;
-  final IconData icon;
-  final Color color;
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: const TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-        color: MockupColors.blueDark,
-      ),
-    );
-  }
-}
-
-class _ShowcaseHighlight {
-  const _ShowcaseHighlight({
-    required this.title,
-    required this.value,
-    required this.subtitle,
-    required this.color,
-  });
-
-  final String title;
-  final String value;
-  final String subtitle;
-  final Color color;
-}
-
-class _ShowcaseActivityData {
-  const _ShowcaseActivityData({
-    required this.title,
-    required this.category,
-    required this.amount,
-    required this.time,
-    required this.accent,
-  });
-
-  final String title;
-  final String category;
-  final String amount;
-  final String time;
-  final Color accent;
-}
-
-class _ShowcaseCategoryData {
-  const _ShowcaseCategoryData({
-    required this.name,
-    required this.total,
-    required this.icon,
-    required this.color,
-  });
-
-  final String name;
-  final String total;
-  final IconData icon;
-  final Color color;
-}
-
-class AppHeader extends StatelessWidget {
-  const AppHeader({
-    super.key,
-    required this.subtitle,
-    required this.title,
-    required this.trailing,
-  });
-
-  final String subtitle;
-  final String title;
-  final Widget trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: MockupColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: MockupColors.blueDark,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          trailing,
-        ],
-      ),
-    );
-  }
-}
-
-class AddButton extends StatelessWidget {
-  const AddButton({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: MockupColors.blueDark,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: const Icon(
-        Icons.add,
-        color: Colors.white,
-      ),
-    );
-  }
-}
-
-class AvatarBadge extends StatelessWidget {
-  const AvatarBadge({super.key, required this.initials});
-
-  final String initials;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [MockupColors.blueDark, MockupColors.blueLight],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        initials,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-class SummaryCard extends StatelessWidget {
-  const SummaryCard({
-    super.key,
-    required this.label,
-    required this.amount,
-    required this.footerLeft,
-    required this.footerRight,
-  });
-
-  final String label;
-  final String amount;
-  final String footerLeft;
-  final String footerRight;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-          colors: [MockupColors.blueDark, MockupColors.mutedBlue],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            amount,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 30,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  footerLeft,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  footerRight,
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class InfoCard extends StatelessWidget {
-  const InfoCard({super.key, required this.title, required this.child});
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: MockupColors.borderBase.withOpacity(0.18)),
-        color: Colors.white,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: MockupColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
-class BarChart extends StatelessWidget {
-  const BarChart({super.key, required this.bars});
-
-  final List<BarEntry> bars;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 120,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          for (var i = 0; i < bars.length; i++) ...[
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Container(
-                    height: 120 * bars[i].percent,
-                    decoration: BoxDecoration(
-                      color: MockupColors.blueLight.withOpacity(0.3),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(10),
-                        topRight: Radius.circular(10),
-                        bottomLeft: Radius.circular(6),
-                        bottomRight: Radius.circular(6),
-                      ),
-                    ),
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Container(
-                        width: double.infinity,
-                        decoration: const BoxDecoration(
-                          color: MockupColors.mutedBlue,
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(10),
-                            topRight: Radius.circular(10),
-                            bottomLeft: Radius.circular(6),
-                            bottomRight: Radius.circular(6),
-                          ),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text(
-                          bars[i].value,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    bars[i].label,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      height: 1.05,
-                      color: MockupColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (i != bars.length - 1) const SizedBox(width: 8),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class CategoryBudgetRow extends StatelessWidget {
-  const CategoryBudgetRow({super.key, required this.entry});
-
-  final CategoryBudgetEntry entry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                entry.name,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: Stack(
-                  children: [
-                    Container(
-                      height: 6,
-                      color: MockupColors.borderBase.withOpacity(0.15),
-                    ),
-                    FractionallySizedBox(
-                      widthFactor: entry.percent,
-                      child: Container(
-                        height: 6,
-                        color: entry.color,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          entry.detail,
-          style: const TextStyle(
-            fontSize: 12,
-            color: MockupColors.textSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class InsightButton extends StatelessWidget {
-  const InsightButton({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
       width: double.infinity,
-      child: TextButton(
-        style: TextButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          backgroundColor: MockupColors.blueLight.withOpacity(0.12),
-          foregroundColor: MockupColors.blueDark,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        onPressed: () {},
-        child: const Text(
-          'Lihat Insight Lengkap',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
+      padding: EdgeInsets.fromLTRB(18, hasMenu ? 18 : 20, 18, 16),
+      decoration: const BoxDecoration(
+        color: MockupColors.blueDark,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Row(
+        children: [
+          if (hasMenu)
+            Material(
+              color: Colors.white.withOpacity(0.18),
+              shape: const CircleBorder(),
+              child: IconButton(
+                onPressed: onMenuTap,
+                icon: const Icon(Icons.menu, color: Colors.white),
+                splashRadius: 24,
+              ),
+            )
+          else
+            const Icon(
+              Icons.account_balance_wallet,
+              color: Colors.white,
+              size: 26,
+            ),
+          const SizedBox(width: 12),
+          const SizedBox.shrink(),
+        ],
       ),
     );
   }
 }
+
 class CameraActionsRow extends StatelessWidget {
   const CameraActionsRow({super.key, required this.labels});
 
@@ -1739,7 +502,7 @@ class CameraControls extends StatelessWidget {
         SizedBox(width: 24),
         ShutterButton(),
         SizedBox(width: 24),
-        MiniButton(label: '📷'),
+        MiniButton(label: '??'),
       ],
     );
   }
@@ -1986,7 +749,7 @@ class SearchBox extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Text('🔍'),
+          const Text('??'),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -2075,10 +838,12 @@ class TransactionCard extends StatelessWidget {
             children: [
               Text(
                 item.amount,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w600,
-                  color: MockupColors.accentRed,
                   fontSize: 14,
+                  color: item.isIncome
+                      ? MockupColors.accentGreen
+                      : MockupColors.accentRed,
                 ),
               ),
               if (item.attachment != null) ...[
@@ -2127,15 +892,9 @@ class BottomNav extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: MockupColors.borderBase.withOpacity(0.16),
+          color: MockupColors.blueDark,
+          width: 2,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
       ),
       child: Row(
         children: [
@@ -2194,20 +953,6 @@ class BottomNavItem {
   final String label;
   final IconData icon;
 }
-class MockupColors {
-  static const Color blueDark = Color(0xFF1E3A8A);
-  static const Color blueLight = Color(0xFF60A5FA);
-  static const Color mutedBlue = Color(0xFF3B82F6);
-  static const Color textPrimary = Color(0xFF0F172A);
-  static const Color textSecondary = Color(0xFF475569);
-  static const Color accentGreen = Color(0xFF10B981);
-  static const Color accentRed = Color(0xFFEF4444);
-  static const Color accentOrange = Color(0xFFF97316);
-  static const Color accentPurple = Color(0xFF8B5CF6);
-  static const Color borderBase = Color(0xFF94A3B8);
-  static const Color pillBackground = Color(0x2894A3B8);
-}
-
 class BarEntry {
   const BarEntry({
     required this.label,
@@ -2260,11 +1005,19 @@ class TransactionItem {
     required this.title,
     required this.category,
     required this.amount,
+    this.isIncome = false,
     this.attachment,
   });
 
   final String title;
   final String category;
   final String amount;
+  final bool isIncome;
   final String? attachment;
 }
+
+
+
+
+
+
