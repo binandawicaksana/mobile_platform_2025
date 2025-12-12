@@ -35,10 +35,13 @@ class AppDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final drawerWidth = MediaQuery.of(context).size.width * 0.6;
+
     return Drawer(
+      width: drawerWidth,
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 76),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -84,8 +87,11 @@ class AppDrawer extends StatelessWidget {
                   onPressed: () => _handleDashboardTap(context),
                   icon: const Icon(Icons.arrow_back_rounded),
                   label: const Text(
-                    "Kembali ke Dashboard",
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                    "Dashboard",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),

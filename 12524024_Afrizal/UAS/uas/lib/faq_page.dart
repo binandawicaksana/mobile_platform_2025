@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'main.dart';
 import 'widgets/app_drawer.dart';
 
 class FaqPage extends StatefulWidget {
@@ -41,6 +42,9 @@ class _FaqPageState extends State<FaqPage> {
 
   @override
   Widget build(BuildContext context) {
+    final accentColor =
+        AppStateScope.of(context)?.pageSeedColor ?? const Color(0xFF0057FF);
+
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: const Color(0xFFE9F2FF),
@@ -86,12 +90,12 @@ class _FaqPageState extends State<FaqPage> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 "FAQ",
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF111827),
+                  color: accentColor,
                 ),
               ),
               const SizedBox(height: 8),
