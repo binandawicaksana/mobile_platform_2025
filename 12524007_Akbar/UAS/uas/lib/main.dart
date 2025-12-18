@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:uas/login.dart';
+import 'welcome.dart';
 
 void main() {
   runApp(const MyApp());
@@ -11,21 +11,23 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Portal Akademik',
       debugShowCheckedModeBanner: false,
+      title: 'DANA Login UI',
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1B3C8C),
-          brightness: Brightness.light,
+        colorScheme: const ColorScheme.light(
+          primary: Color(0xFF0D8BFF),
+          secondary: Color(0xFF4EC8FF),
+          surface: Colors.white,
         ),
-        scaffoldBackgroundColor: const Color(0xFFF4F6FB),
-        textTheme: Theme.of(context).textTheme.apply(
-          bodyColor: const Color(0xFF0F1E5A),
-          displayColor: const Color(0xFF0F1E5A),
+        scaffoldBackgroundColor: Colors.white,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF0D8BFF),
+          foregroundColor: Colors.white,
+          elevation: 0,
         ),
       ),
-      home: const LoginPage(),
+      home: const WelcomePage(),
     );
   }
 }

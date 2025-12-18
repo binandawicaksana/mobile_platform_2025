@@ -31,6 +31,10 @@
 
   <title>uas</title>
   <link rel="manifest" href="manifest.json">
+  <script>
+    // Force HTML renderer to avoid downloading CanvasKit when offline.
+    window.flutterWebRenderer = "html";
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
