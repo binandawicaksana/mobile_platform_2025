@@ -14,6 +14,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isAgreed = false;
+  bool _obscurePassword = true; // show/hide password
 
   static const Color primaryPurple = Color(0xFF4A00E0);
 
@@ -27,12 +28,20 @@ class _RegisterPageState extends State<RegisterPage> {
         return;
       }
 
-      // DI SINI KUNCI-NYA ➜ setelah daftar, balik ke LOGIN
+      // setelah daftar, balik ke LOGIN
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const LoginPage()),
       );
     }
+  }
+
+  @override
+  void dispose() {
+    _namaController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -131,32 +140,83 @@ class _RegisterPageState extends State<RegisterPage> {
                   TextFormField(
                     controller: _namaController,
                     decoration: _inputDecoration('Nama'),
-                    validator: (v) => v == null || v.isEmpty
-                        ? 'Nama tidak boleh kosong'
-                        : null,
+                    validator: (v) {
+                      final value = v?.trim() ?? '';
+                      if (value.isEmpty) {
+                        return 'Nama tidak boleh kosong';
+                      }
+                      if (value.length < 3) {
+                        return 'Nama minimal 3 karakter';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
 
-                  // Username
+                  // Username (aturan sama dengan login)
                   TextFormField(
                     controller: _usernameController,
                     decoration: _inputDecoration('Username'),
-                    validator: (v) => v == null || v.isEmpty
-                        ? 'Username tidak boleh kosong'
-                        : null,
+                    validator: (v) {
+                      final value = v?.trim() ?? '';
+                      if (value.isEmpty) {
+                        return 'Username tidak boleh kosong';
+                      }
+                      if (value.length < 4) {
+                        return 'Username minimal 4 karakter';
+                      }
+                      final regex = RegExp(r'^[a-zA-Z0-9_]+$');
+                      if (!regex.hasMatch(value)) {
+                        return 'Username hanya boleh huruf, angka, dan _ (tanpa spasi)';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
 
-                  // Password
+                  // Password (aturan sama dengan login, tanpa selectbox)
                   TextFormField(
                     controller: _passwordController,
-                    obscureText: true,
-                    decoration: _inputDecoration(
-                      'Password',
-                    ).copyWith(suffixIcon: const Icon(Icons.arrow_drop_down)),
-                    validator: (v) => v == null || v.length < 6
-                        ? 'Password minimal 6 karakter'
-                        : null,
+                    obscureText: _obscurePassword,
+                    decoration: _inputDecoration('Password').copyWith(
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: Colors.grey,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                      ),
+                    ),
+                    validator: (v) {
+                      final value = v ?? '';
+                      if (value.isEmpty) {
+                        return 'Password tidak boleh kosong';
+                      }
+                      if (value.length < 8) {
+                        return 'Password minimal 8 karakter';
+                      }
+                      if (!RegExp(r'[A-Z]').hasMatch(value)) {
+                        return 'Password harus mengandung huruf besar';
+                      }
+                      if (!RegExp(r'[a-z]').hasMatch(value)) {
+                        return 'Password harus mengandung huruf kecil';
+                      }
+                      if (!RegExp(r'[0-9]').hasMatch(value)) {
+                        return 'Password harus mengandung angka';
+                      }
+                      if (!RegExp(
+                        r'[!@#\$%^&*(),.?":{}|<>_\-]',
+                      ).hasMatch(value)) {
+                        return 'Password harus mengandung simbol';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
 

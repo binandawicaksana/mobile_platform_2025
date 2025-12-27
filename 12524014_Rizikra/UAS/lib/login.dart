@@ -14,16 +14,29 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  bool _obscurePassword = true; // untuk show/hide password
+
   static const Color primaryPurple = Color(0xFF4A00E0);
 
   void _onLogin() {
     if (_formKey.currentState!.validate()) {
-      // Jika valid, langsung pindah ke dashboard
+      // Jika valid, langsung pindah ke dashboard dengan saldo awal
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const DashboardPage()),
+        MaterialPageRoute(
+          builder: (_) => const DashboardPage(
+            initialBalance: 8129, // saldo awal di dashboard
+          ),
+        ),
       );
     }
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -126,7 +139,7 @@ class _LoginPageState extends State<LoginPage> {
 
                       const SizedBox(height: 32),
 
-                      // Username
+                      // ================= USERNAME =================
                       TextFormField(
                         controller: _usernameController,
                         decoration: InputDecoration(
@@ -151,8 +164,17 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty) {
+                          final v = value?.trim() ?? '';
+                          if (v.isEmpty) {
                             return "Username tidak boleh kosong";
+                          }
+                          if (v.length < 4) {
+                            return "Username minimal 4 karakter";
+                          }
+                          // hanya huruf, angka, underscore
+                          final regex = RegExp(r'^[a-zA-Z0-9_]+$');
+                          if (!regex.hasMatch(v)) {
+                            return "Username hanya boleh huruf, angka, dan _ (tanpa spasi)";
                           }
                           return null;
                         },
@@ -160,10 +182,10 @@ class _LoginPageState extends State<LoginPage> {
 
                       const SizedBox(height: 16),
 
-                      // Password
+                      // ================= PASSWORD =================
                       TextFormField(
                         controller: _passwordController,
-                        obscureText: true,
+                        obscureText: _obscurePassword,
                         decoration: InputDecoration(
                           hintText: 'Password',
                           filled: true,
@@ -172,7 +194,20 @@ class _LoginPageState extends State<LoginPage> {
                             horizontal: 20,
                             vertical: 14,
                           ),
-                          suffixIcon: const Icon(Icons.arrow_drop_down),
+                          // BUKAN selectbox: pakai ikon eye untuk show/hide
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              color: Colors.grey,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _obscurePassword = !_obscurePassword;
+                              });
+                            },
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(30),
                             borderSide: BorderSide(color: Colors.grey.shade300),
@@ -187,11 +222,26 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty) {
+                          final v = value ?? '';
+                          if (v.isEmpty) {
                             return "Password tidak boleh kosong";
                           }
-                          if (value.length < 6) {
-                            return "Password minimal 6 karakter";
+                          if (v.length < 8) {
+                            return "Password minimal 8 karakter";
+                          }
+                          if (!RegExp(r'[A-Z]').hasMatch(v)) {
+                            return "Password harus mengandung huruf besar";
+                          }
+                          if (!RegExp(r'[a-z]').hasMatch(v)) {
+                            return "Password harus mengandung huruf kecil";
+                          }
+                          if (!RegExp(r'[0-9]').hasMatch(v)) {
+                            return "Password harus mengandung angka";
+                          }
+                          if (!RegExp(
+                            r'[!@#\$%^&*(),.?":{}|<>_\-]',
+                          ).hasMatch(v)) {
+                            return "Password harus mengandung simbol";
                           }
                           return null;
                         },
@@ -254,7 +304,6 @@ class _LoginPageState extends State<LoginPage> {
 
                       const SizedBox(height: 8),
 
-                      // === INI BAGIAN "Belum Punya Akun? Daftar" YANG SUDAH DI-SATUKAN ===
                       GestureDetector(
                         onTap: () {
                           Navigator.push(
