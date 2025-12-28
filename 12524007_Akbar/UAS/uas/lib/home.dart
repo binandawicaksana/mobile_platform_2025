@@ -5,7 +5,38 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:uas/widgets/electronic_money_logo_painter.dart';
 import 'package:uas/widgets/money_logo_painter.dart';
+
+String _formatRupiah(int amount) {
+  final digits = amount.toString();
+  final buffer = StringBuffer();
+  for (var i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 == 0) {
+      buffer.write('.');
+    }
+    buffer.write(digits[i]);
+  }
+  return "Rp ${buffer.toString()}";
+}
+
+int _parseAmount(String text) {
+  final digits = text.replaceAll(RegExp(r"[^0-9]"), "");
+  if (digits.isEmpty) {
+    return 0;
+  }
+  return int.tryParse(digits) ?? 0;
+}
+
+String _maskPhone(String phone) {
+  final digits = phone.replaceAll(RegExp(r"[^0-9]"), "");
+  if (digits.length <= 6) {
+    return phone;
+  }
+  final start = digits.substring(0, 4);
+  final end = digits.substring(digits.length - 4);
+  return "$start **** $end";
+}
 
 class HomePage extends StatefulWidget {
   final String contact;
@@ -22,18 +53,179 @@ class _HomePageState extends State<HomePage> {
   bool _isBalanceHidden = false;
   String? _lastScan;
   String _profileName = "Pengguna";
+  int _balanceAmount = 2500000;
   final String _incomingAmount = "Rp 12.500";
   final String _outgoingAmount = "Rp 7.800";
   Uint8List? _profileImage;
-  static const List<_QuickAction> _quickActions = [
-    _QuickAction("Pulsa & Data", Icons.signal_cellular_alt, Color(0xFFEAF4FF)),
-    _QuickAction("A+ Rewards", Icons.emoji_events_outlined, Color(0xFFFFF3E6)),
-    _QuickAction("Google Play Zone", Icons.games_outlined, Color(0xFFEFF5E8)),
-    _QuickAction("Travel", Icons.flight_takeoff_outlined, Color(0xFFE7F5FF)),
-    _QuickAction("Hadiah Harian", Icons.card_giftcard_outlined, Color(0xFFFFEEF3)),
-    _QuickAction("Listrik", Icons.bolt_outlined, Color(0xFFEFF3FF)),
-    _QuickAction("Dana Deals", Icons.local_offer_outlined, Color(0xFFE9F7F2)),
-    _QuickAction("Lihat semua", Icons.more_horiz, Color(0xFFF3F4F6)),
+  final ScrollController _homeScrollController = ScrollController();
+  final ScrollController _profileScrollController = ScrollController();
+  bool _showHomeScrollToTop = false;
+  bool _showProfileScrollToTop = false;
+  static Widget _phoneRpIcon(Color color) {
+    return SizedBox(
+      width: 5,
+      height: 10,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: color,
+              border: Border.all(color: Colors.white, width: 2),
+              borderRadius: BorderRadius.circular(6),
+            ),
+          ),
+          Positioned(
+            top: 1,
+            child: Container(
+              width: 4,
+              height: 2,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 3.5,
+            left: 1,
+            right: 1,
+            child: Container(
+              height: 1.5,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 1,
+            child: Container(
+              width: 2.5,
+              height: 2,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 3.5,
+            left: 1,
+            right: 1,
+            child: Container(
+              height: 1.5,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Text(
+            "Rp",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              height: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _electronicMoneyIcon() {
+    return SizedBox(
+      width: 32,
+      height: 22,
+      child: CustomPaint(
+        painter: const ElectronicMoneyLogoPainter(),
+      ),
+    );
+  }
+
+  static Widget _seeAllDotsIcon() {
+    const dotColor = Color(0xFF9CA3AF);
+    return SizedBox(
+      width: 24,
+      height: 24,
+      child: Stack(
+        alignment: Alignment.center,
+        children: const [
+          Positioned(
+            top: 10,
+            left: 10,
+            child: _Dot(dotColor),
+          ),
+          Positioned(
+            top: 10,
+            right: 10,
+            child: _Dot(dotColor),
+          ),
+          Positioned(
+            bottom: 10,
+            left: 10,
+            child: _Dot(dotColor),
+          ),
+          Positioned(
+            bottom: 10,
+            right: 10,
+            child: _Dot(dotColor),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _danaDealsTicketIcon() {
+    return SizedBox(
+      width: 36,
+      height: 26,
+      child: CustomPaint(
+        painter: _DanaDealsTicketPainter(),
+      ),
+    );
+  }
+  final List<_QuickAction> _quickActions = [
+    _QuickAction(
+      "Pulsa & Data",
+      Icons.signal_cellular_alt,
+      const Color(0xFFEAF4FF),
+      iconWidget: _phoneRpIcon(const Color(0xFFE53935)),
+    ),
+    const _QuickAction(
+      "Listrik",
+      Icons.lightbulb_outline,
+      Colors.transparent,
+      iconColor: Color(0xFFFF8A00),
+    ),
+    _QuickAction(
+      "Uang\nElektronik",
+      Icons.account_balance_wallet_outlined,
+      const Color(0xFFEFF5E8),
+      iconWidget: _electronicMoneyIcon(),
+    ),
+    const _QuickAction("Travel", Icons.flight_takeoff_outlined, Colors.transparent),
+    const _QuickAction("Hadiah Harian", Icons.card_giftcard_outlined, Colors.transparent),
+    const _QuickAction(
+      "Cicilan",
+      Icons.calendar_month_outlined,
+      Colors.transparent,
+      iconColor: Color(0xFFE53935),
+    ),
+    _QuickAction(
+      "Dana Deals",
+      Icons.local_offer_outlined,
+      const Color(0xFFE9F7F2),
+      iconWidget: _danaDealsTicketIcon(),
+    ),
+    _QuickAction(
+      "Lihat semua",
+      Icons.more_horiz,
+      Colors.transparent,
+      iconWidget: _seeAllDotsIcon(),
+    ),
   ];
 
   final List<_Promo> _promos = const [
@@ -45,11 +237,33 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _homeScrollController.addListener(() {
+      final shouldShow = _homeScrollController.offset > 120;
+      if (_showHomeScrollToTop != shouldShow) {
+        setState(() => _showHomeScrollToTop = shouldShow);
+      }
+    });
+    _profileScrollController.addListener(() {
+      final shouldShow = _profileScrollController.offset > 120;
+      if (_showProfileScrollToTop != shouldShow) {
+        setState(() => _showProfileScrollToTop = shouldShow);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _homeScrollController.dispose();
+    _profileScrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollToTop(ScrollController controller) {
+    controller.animateTo(
+      0,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOut,
+    );
   }
 
   final List<_Bank> _banks = const [
@@ -159,7 +373,7 @@ class _HomePageState extends State<HomePage> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
-                        _isBalanceHidden ? "Rp ••••••" : "Rp 2.500.000",
+                        _isBalanceHidden ? "Rp ••••••" : _formatRupiah(_balanceAmount),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 22,
@@ -225,6 +439,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                       badgeIconColor: Colors.white,
                     ),
+                    onTap: _showQuickSend,
                   ),
                 ),
               ),
@@ -306,6 +521,7 @@ class _HomePageState extends State<HomePage> {
                       badgeIconColor: Colors.white,
                     ),
                     label: "Kirim",
+                    onTap: _showQuickSend,
                   ),
                 ),
                 ),
@@ -447,6 +663,26 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _quickActionTile(_QuickAction action, Color primaryBlue, double width) {
+    final normalizedLabel = action.label.replaceAll("\n", " ");
+    final bool isPulsaData = normalizedLabel == "Pulsa & Data";
+    final bool isElectronicMoney = normalizedLabel == "Uang Elektronik";
+    final bool isDanaDeals = normalizedLabel == "Dana Deals";
+    final bool isCicilan = normalizedLabel == "Cicilan";
+    const double iconBoxSize = 46;
+    final double iconWidth = isPulsaData
+        ? 28
+        : isElectronicMoney
+            ? 36
+            : isDanaDeals
+                ? 36
+                : 46;
+    final double iconHeight = isPulsaData
+        ? 46
+        : isElectronicMoney
+            ? 25
+            : isDanaDeals
+                ? 24
+                : 46;
     return SizedBox(
       width: width,
       child: InkWell(
@@ -463,14 +699,25 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: action.backgroundColor,
-                borderRadius: BorderRadius.circular(14),
+            SizedBox(
+              width: iconBoxSize,
+              height: iconBoxSize,
+              child: Center(
+                child: Container(
+                  width: iconWidth,
+                  height: iconHeight,
+                  decoration: BoxDecoration(
+                    color: action.backgroundColor,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: action.iconWidget ??
+                      Icon(
+                        action.icon,
+                        color: action.iconColor ?? primaryBlue,
+                        size: isCicilan ? 30 : 24,
+                      ),
+                ),
               ),
-              child: Icon(action.icon, color: primaryBlue, size: 24),
             ),
             const SizedBox(height: 8),
             Text(
@@ -813,6 +1060,24 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  void _showQuickSend() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => _QuickSendPage(
+          onPaid: (amount) {
+            if (amount <= 0) {
+              return;
+            }
+            setState(() {
+              _balanceAmount = math.max(0, _balanceAmount - amount);
+            });
+          },
+        ),
+        fullscreenDialog: true,
+      ),
+    );
+  }
+
   Widget _voucherPromoIcon() {
     const waveColor = Color(0xFFFF8A00);
     return SizedBox(
@@ -917,6 +1182,891 @@ class _Promo {
   const _Promo(this.title, this.description);
 }
 
+class _Dot extends StatelessWidget {
+  final Color color;
+
+  const _Dot(this.color);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+}
+
+class _QuickSendPage extends StatelessWidget {
+  final ValueChanged<int> onPaid;
+
+  const _QuickSendPage({required this.onPaid});
+
+  static const List<_QuickSendContact> _contacts = [
+    _QuickSendContact(name: "Jule", phone: "0812 3456 7890"),
+    _QuickSendContact(name: "Ayah Jule", phone: "0813 1111 2222"),
+    _QuickSendContact(name: "Ibu Jule", phone: "0813 3333 4444"),
+    _QuickSendContact(name: "Kakak Jule", phone: "0812 5555 6666"),
+    _QuickSendContact(name: "Adik Jule", phone: "0812 7777 8888"),
+    _QuickSendContact(name: "Pacar 1 Jule", phone: "0813 9999 0001"),
+    _QuickSendContact(name: "Pacar 2 Jule", phone: "0813 0000 1112"),
+    _QuickSendContact(name: "Pacar 3 Jule", phone: "0812 1212 1313"),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    const primaryBlue = Color(0xFF0D8BFF);
+    const secondaryBlue = Color(0xFF4EC8FF);
+
+    return Scaffold(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final topHeight = constraints.maxHeight * 0.3;
+          const double overlap = 48;
+          const EdgeInsets sidePadding = EdgeInsets.fromLTRB(20, 0, 20, 0);
+          final contactCard = Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+                bottomLeft: Radius.circular(16),
+                bottomRight: Radius.circular(16),
+              ),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Kirim cepat",
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 16,
+                  alignment: WrapAlignment.center,
+                  children: _contacts
+                      .map(
+                        (contact) => _QuickSendChip(
+                          label: contact.name,
+                          icon: Icons.person_outline,
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => _QuickSendContactPage(
+                                  contact: contact,
+                                  onPaid: onPaid,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      )
+                      .toList(),
+                ),
+              ],
+            ),
+          );
+
+          return Container(
+            color: primaryBlue,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Column(
+                  children: [
+                    SizedBox(
+                      height: topHeight,
+                      width: double.infinity,
+                      child: Column(
+                        children: [
+                          SafeArea(
+                            bottom: false,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  const Text(
+                                    "Kirim uang",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 18,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: IconButton(
+                                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                                      onPressed: () => Navigator.of(context).pop(),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(20, 72, 20, 110),
+                        color: Colors.white,
+                        child: const SizedBox.shrink(),
+                      ),
+                    ),
+                  ],
+                ),
+                Positioned(
+                  top: topHeight - overlap,
+                  left: sidePadding.left,
+                  right: sidePadding.right,
+                  child: contactCard,
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _QuickSendContactPage extends StatefulWidget {
+  final _QuickSendContact contact;
+  final ValueChanged<int> onPaid;
+
+  const _QuickSendContactPage({required this.contact, required this.onPaid});
+
+  @override
+  State<_QuickSendContactPage> createState() => _QuickSendContactPageState();
+}
+
+class _QuickSendContactPageState extends State<_QuickSendContactPage> {
+  late final TextEditingController _amountController;
+  late final TextEditingController _noteController;
+
+  @override
+  void initState() {
+    super.initState();
+    _amountController = TextEditingController();
+    _noteController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  String _initials(String name) {
+    final parts = name.trim().split(RegExp(r"\s+"));
+    if (parts.isEmpty) {
+      return "U";
+    }
+    final first = parts.first.isNotEmpty ? parts.first[0] : "U";
+    if (parts.length == 1) {
+      return first.toUpperCase();
+    }
+    final last = parts.last.isNotEmpty ? parts.last[0] : "";
+    return (first + last).toUpperCase();
+  }
+
+  InputDecoration _fieldDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      filled: true,
+      fillColor: const Color(0xFFF9FAFB),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF0D8BFF)),
+      ),
+    );
+  }
+
+  Widget _buildContinueButton(Color primaryBlue) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: primaryBlue,
+          elevation: 0,
+          minimumSize: const Size.fromHeight(50),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(color: primaryBlue.withOpacity(0.35)),
+          ),
+        ),
+        onPressed: () {
+          final amountText = _amountController.text.trim();
+          final amount = _parseAmount(amountText);
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => _QuickSendPayPage(
+                contact: widget.contact,
+                amount: amount,
+                onPaid: widget.onPaid,
+              ),
+            ),
+          );
+        },
+        child: const Text(
+          "Lanjut",
+          style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.3),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const primaryBlue = Color(0xFF0D8BFF);
+
+    return Scaffold(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final topHeight = constraints.maxHeight * 0.28;
+          const double overlap = 28;
+          const EdgeInsets sidePadding = EdgeInsets.fromLTRB(20, 0, 20, 0);
+          final contactCard = Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: const Color(0xFFE5F2FF),
+                  child: Text(
+                    _initials(widget.contact.name),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0D8BFF),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.contact.name,
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.contact.phone,
+                        style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+
+          return Container(
+            color: primaryBlue,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Column(
+                  children: [
+                    SizedBox(
+                      height: topHeight,
+                      width: double.infinity,
+                      child: SafeArea(
+                        bottom: false,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              const Text(
+                                "Kirim ke teman",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 18,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: IconButton(
+                                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                                  onPressed: () => Navigator.of(context).pop(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(20, 72, 20, 24),
+                        color: Colors.white,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Jumlah kirim saldo",
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 8),
+                            TextField(
+                              keyboardType: TextInputType.number,
+                              controller: _amountController,
+                              decoration: _fieldDecoration("0").copyWith(prefixText: "Rp "),
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              "Catatan",
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 8),
+                            TextField(
+                              maxLines: 3,
+                              controller: _noteController,
+                              decoration: _fieldDecoration("Tulis catatan untuk penerima"),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Positioned(
+                  top: topHeight - overlap,
+                  left: sidePadding.left,
+                  right: sidePadding.right,
+                  child: contactCard,
+                ),
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                      child: _buildContinueButton(primaryBlue),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _QuickSendPayPage extends StatelessWidget {
+  final _QuickSendContact contact;
+  final int amount;
+  final ValueChanged<int> onPaid;
+
+  const _QuickSendPayPage({
+    required this.contact,
+    required this.amount,
+    required this.onPaid,
+  });
+
+  String _initials(String name) {
+    final parts = name.trim().split(RegExp(r"\s+"));
+    if (parts.isEmpty) {
+      return "U";
+    }
+    final first = parts.first.isNotEmpty ? parts.first[0] : "U";
+    if (parts.length == 1) {
+      return first.toUpperCase();
+    }
+    final last = parts.last.isNotEmpty ? parts.last[0] : "";
+    return (first + last).toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const primaryBlue = Color(0xFF0D8BFF);
+    final amountLabel = _formatRupiah(amount);
+
+    return Scaffold(
+      body: Column(
+        children: [
+          SafeArea(
+            bottom: false,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+              color: Colors.white,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  const Text(
+                    "Pay",
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Container(
+              color: primaryBlue,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 16),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(
+                      "Informasi pembayaran",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 26,
+                          backgroundColor: const Color(0xFFE5F2FF),
+                          child: Text(
+                            _initials(contact.name),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF0D8BFF),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                "Kirim uang",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Text(
+                                    contact.name,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    contact.phone,
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                "Total harga",
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                              Text(
+                                amountLabel,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Spacer(),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primaryBlue,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                minimumSize: const Size.fromHeight(52),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              onPressed: () {
+                                onPaid(amount);
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => _QuickSendSuccessPage(
+                                      contact: contact,
+                                      amount: amount,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Text(
+                                    "BAYAR",
+                                    style: TextStyle(fontWeight: FontWeight.w800),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    amountLabel,
+                                    style: const TextStyle(fontWeight: FontWeight.w700),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickSendSuccessPage extends StatelessWidget {
+  final _QuickSendContact contact;
+  final int amount;
+
+  const _QuickSendSuccessPage({required this.contact, required this.amount});
+
+  @override
+  Widget build(BuildContext context) {
+    const primaryBlue = Color(0xFF0D8BFF);
+    final amountLabel = _formatRupiah(amount);
+    final maskedPhone = _maskPhone(contact.phone);
+
+    return Scaffold(
+      body: Column(
+        children: [
+          SafeArea(
+            bottom: false,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+              color: Colors.white,
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF0D8BFF),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: CustomPaint(
+                          painter: MoneyLogoPainter(Colors.white, waveHeightFactor: 0.13),
+                          size: const Size(18, 14),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      "Pay",
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Container(
+              color: primaryBlue,
+              child: Column(
+                children: [
+                  const SizedBox(height: 16),
+                  const Text(
+                    "Pembayaran Sukses",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 60,
+                          height: 60,
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFD54F),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.15),
+                                blurRadius: 12,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFD54F),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: const Color(0xFFB7791F), width: 2.5),
+                            ),
+                            child: const Icon(
+                              Icons.check,
+                              color: Color(0xFFB7791F),
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          "Kirim Uang Ke",
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          "${contact.name} • $maskedPhone",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          amountLabel,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 22,
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.white70),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () {},
+                          icon: const Icon(Icons.share_outlined, size: 18),
+                          label: const Text(
+                            "Bagikan",
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                    color: Colors.white,
+                    child: SafeArea(
+                      top: false,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            "Kamu bisa cek di Riwayat Transaksi",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: primaryBlue,
+                                    side: const BorderSide(color: Color(0xFF0D8BFF)),
+                                    minimumSize: const Size.fromHeight(48),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    Navigator.of(context).popUntil((route) => route.isFirst);
+                                  },
+                                  child: const Text(
+                                    "Tutup",
+                                    style: TextStyle(fontWeight: FontWeight.w700),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: primaryBlue,
+                                    foregroundColor: Colors.white,
+                                    minimumSize: const Size.fromHeight(48),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    Navigator.of(context).popUntil((route) => route.isFirst);
+                                  },
+                                  child: const Text(
+                                    "Cek Detail",
+                                    style: TextStyle(fontWeight: FontWeight.w700),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickSendChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  const _QuickSendChip({required this.label, required this.icon, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          width: 93,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                child: Icon(icon, size: 26, color: Colors.grey[700]),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.grey[800],
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12.5,
+                  height: 1.1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickSendContact {
+  final String name;
+  final String phone;
+
+  const _QuickSendContact({required this.name, required this.phone});
+}
+
 class _Bank {
   final String name;
   final String code;
@@ -928,8 +2078,16 @@ class _QuickAction {
   final String label;
   final IconData icon;
   final Color backgroundColor;
+  final Color? iconColor;
+  final Widget? iconWidget;
 
-  const _QuickAction(this.label, this.icon, this.backgroundColor);
+  const _QuickAction(
+    this.label,
+    this.icon,
+    this.backgroundColor, {
+    this.iconColor,
+    this.iconWidget,
+  });
 }
 
 extension on _HomePageState {
@@ -937,41 +2095,69 @@ extension on _HomePageState {
     switch (_currentIndex) {
       case 0:
         final topInset = MediaQuery.of(context).padding.top;
-        final headerHeight = topInset + (MediaQuery.of(context).size.width > 600 ? 330 : 300);
-        return Stack(
-          children: [
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: headerHeight,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: primaryBlue,
+        final headerHeight = topInset + (MediaQuery.of(context).size.width > 600 ? 260 : 230);
+        return Container(
+          color: Colors.grey[50],
+          child: Stack(
+            children: [
+              CustomScrollView(
+                controller: _homeScrollController,
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          height: headerHeight,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                primaryBlue,
+                                primaryBlue.withOpacity(0.92),
+                                primaryBlue,
+                              ],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
+                          ),
+                          child: _buildBalanceCard(primaryBlue, secondaryBlue),
+                        ),
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: -160,
+                          child: _wrapMobile(
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: _buildQuickActions(primaryBlue),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SliverToBoxAdapter(child: const SizedBox(height: 200)),
+                  SliverToBoxAdapter(
+                    child: _wrapMobile(
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _buildPromoList(),
+                      ),
+                    ),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 120)),
+                ],
+              ),
+              Positioned(
+                right: 16,
+                bottom: 16,
+                child: _scrollToTopButton(
+                  visible: _showHomeScrollToTop,
+                  onTap: () => _scrollToTop(_homeScrollController),
                 ),
               ),
-            ),
-            ListView(
-              padding: const EdgeInsets.only(bottom: 24),
-              children: [
-                _buildBalanceCard(primaryBlue, secondaryBlue),
-                const SizedBox(height: 18),
-                _wrapMobile(
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: _buildQuickActions(primaryBlue),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                _wrapMobile(
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: _buildPromoList(),
-                  ),
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         );
       case 1:
         return _wrapMobile(
@@ -999,109 +2185,132 @@ extension on _HomePageState {
     }
   }
 
+  Widget _scrollToTopButton({required bool visible, required VoidCallback onTap}) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    return AnimatedSlide(
+      offset: visible ? Offset.zero : const Offset(0, 1.4),
+      duration: const Duration(milliseconds: 180),
+      child: AnimatedOpacity(
+        opacity: visible ? 1 : 0,
+        duration: const Duration(milliseconds: 200),
+        child: Padding(
+          padding: EdgeInsets.only(bottom: 12 + bottomInset),
+          child: FloatingActionButton.small(
+            heroTag: null,
+            backgroundColor: const Color(0xFF0D8BFF),
+            onPressed: onTap,
+            child: const Icon(Icons.arrow_upward),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildProfilePage(Color primaryBlue) {
     final displayContact = widget.contact.isEmpty ? "Nomor belum diisi" : widget.contact;
-    final deepBlue = const Color(0xFF0A6ED1);
-    final lightBlue = const Color(0xFF4EC8FF);
+    final topInset = MediaQuery.of(context).padding.top;
+    const moneySectionOverlap = 30.0;
+    final profileHeaderHeight = topInset + (MediaQuery.of(context).size.width > 600 ? 260 : 230);
 
     return Container(
-    color: Colors.transparent,
+      color: Colors.white,
       child: Stack(
-        fit: StackFit.expand,
         children: [
-          Positioned.fill(
-            child: Container(color: Colors.white),
-          ),
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 240,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    primaryBlue,
-                    deepBlue,
-                    deepBlue,
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  stops: const [0, 1, 1],
-                ),
-              ),
-            ),
-          ),
-          SafeArea(
-            bottom: false,
-            child: Column(
-              children: [
-                const SizedBox(height: 12),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          CustomScrollView(
+            controller: _profileScrollController,
+            slivers: [
+              SliverToBoxAdapter(
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Stack(
                       children: [
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.all(16),
+                          height: profileHeaderHeight,
                           decoration: BoxDecoration(
-                            color: Colors.transparent,
-                            borderRadius: BorderRadius.circular(18),
+                            gradient: LinearGradient(
+                              colors: [
+                                primaryBlue,
+                                primaryBlue.withOpacity(0.92),
+                                primaryBlue,
+                              ],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  GestureDetector(
-                                    onTap: _pickProfileImage,
-                                    child: CircleAvatar(
-                                      radius: 42,
-                                      backgroundColor: Colors.white,
-                                      backgroundImage: _profileImage != null ? MemoryImage(_profileImage!) : null,
-                                      child: _profileImage == null
-                                          ? const Icon(Icons.person, color: Color(0xFF0D8BFF), size: 38)
-                                          : null,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
+                        ),
+                        Align(
+                          alignment: Alignment.topLeft,
+                          child: Padding(
+                            padding: EdgeInsets.fromLTRB(16, topInset + 16, 16, 12),
+                            child: Stack(
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Row(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         GestureDetector(
-                                          onTap: _showProfileDetails,
-                                          child: Text(
-                                            _profileName,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 18,
-                                              color: Colors.white,
-                                            ),
+                                          onTap: _pickProfileImage,
+                                          child: CircleAvatar(
+                                            radius: 42,
+                                            backgroundColor: Colors.white,
+                                            backgroundImage:
+                                                _profileImage != null ? MemoryImage(_profileImage!) : null,
+                                            child: _profileImage == null
+                                                ? const Icon(Icons.person, color: Color(0xFF0D8BFF), size: 38)
+                                                : null,
                                           ),
                                         ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          displayContact,
-                                          style: const TextStyle(color: Colors.white70),
-                                        ),
-                                        const SizedBox(height: 10),
-                                        Wrap(
-                                          spacing: 10,
-                                          runSpacing: 8,
-                                          children: [
-                                            _profilePill(Icons.qr_code_2_outlined, "QR Saya >"),
-                                            _proteksiXtraPill(),
-                                          ],
+                                        const SizedBox(width: 14),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              GestureDetector(
+                                                onTap: _showProfileDetails,
+                                                child: Text(
+                                                  _profileName,
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.w800,
+                                                    fontSize: 18,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                displayContact,
+                                                style: const TextStyle(color: Colors.white70),
+                                              ),
+                                              const SizedBox(height: 10),
+                                              Wrap(
+                                                spacing: 10,
+                                                runSpacing: 8,
+                                                children: [
+                                                  _profilePill(Icons.qr_code_2_outlined, "QR Saya >"),
+                                                  _proteksiXtraPill(),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ],
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  OutlinedButton(
+                                    const SizedBox(height: 16),
+                                    Transform.translate(
+                                      offset: const Offset(-8, moneySectionOverlap),
+                                      child: _moneySection(primaryBlue),
+                                    ),
+                                  ],
+                                ),
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: OutlinedButton(
                                     onPressed: _editProfileName,
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: Colors.white,
@@ -1113,53 +2322,71 @@ extension on _HomePageState {
                                     ),
                                     child: const Text("Edit"),
                                   ),
-                                ],
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 18),
-                        _moneySection(primaryBlue),
-                        const SizedBox(height: 16),
-                        _profileSection(
-                          title: "Layanan & Bantuan",
-                          items: [
-                            _ProfileItem(
-                              Icons.receipt_long_outlined,
-                              "My Bills",
-                              "Kelola dan bayar tagihan kamu.",
-                              leading: const Icon(Icons.receipt_long_outlined, color: Colors.orange),
-                            ),
-                            _ProfileItem(
-                              Icons.percent,
-                              "Voucher Promo",
-                              "Lihat dan gunakan promo yang tersedia.",
-                              leading: _voucherPromoIcon(),
-                            ),
-                            _ProfileItem(
-                              Icons.settings_outlined,
-                              "Pengaturan",
-                              "Bahasa, notifikasi, dan preferensi lainnya.",
-                            ),
-                            _ProfileItem(
-                              Icons.info_outline,
-                              "Info Umum",
-                              "Informasi akun dan perangkat terhubung.",
-                              leading: const Icon(Icons.info_outline, color: Colors.green),
-                            ),
-                            _ProfileItem(
-                              Icons.headset_mic_outlined,
-                              "DIANA siap membantu!",
-                              "Butuh bantuan? Hubungi kami.",
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 18),
                       ],
                     ),
+                  ],
+                ),
+              ),
+              SliverToBoxAdapter(child: SizedBox(height: 24 + moneySectionOverlap)),
+              SliverToBoxAdapter(
+                child: Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _profileSection(
+                        title: "Layanan & Bantuan",
+                        items: [
+                          _ProfileItem(
+                            Icons.receipt_long_outlined,
+                            "My Bills",
+                            "Kelola dan bayar tagihan kamu.",
+                            leading: const Icon(Icons.receipt_long_outlined, color: Colors.orange),
+                          ),
+                          _ProfileItem(
+                            Icons.percent,
+                            "Voucher Promo",
+                            "Lihat dan gunakan promo yang tersedia.",
+                            leading: _voucherPromoIcon(),
+                          ),
+                          _ProfileItem(
+                            Icons.settings_outlined,
+                            "Pengaturan",
+                            "Bahasa, notifikasi, dan preferensi lainnya.",
+                          ),
+                          _ProfileItem(
+                            Icons.info_outline,
+                            "Info Umum",
+                            "Informasi akun dan perangkat terhubung.",
+                            leading: const Icon(Icons.info_outline, color: Colors.green),
+                          ),
+                          _ProfileItem(
+                            Icons.headset_mic_outlined,
+                            "DIANA siap membantu!",
+                            "Butuh bantuan? Hubungi kami.",
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              const SliverToBoxAdapter(child: SizedBox(height: 120)),
+            ],
+          ),
+          Positioned(
+            right: 16,
+            bottom: 16,
+            child: _scrollToTopButton(
+              visible: _showProfileScrollToTop,
+              onTap: () => _scrollToTop(_profileScrollController),
             ),
           ),
         ],
@@ -1289,123 +2516,148 @@ extension on _HomePageState {
   }
 
   Widget _moneySection(Color primaryBlue) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 4),
-          Align(
-            alignment: Alignment.center,
-            child: Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              alignment: WrapAlignment.center,
-              children: [
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _quickFeatureCard(
-                      iconWidget: _balanceLogoIcon(primaryBlue),
-                      title: "Saldo",
-                      subtitle: "Rp 2.500.000",
-                      color: primaryBlue,
-                    ),
-                    const SizedBox(height: 12),
-                    _quickFeatureCard(
-                      iconWidget: _emasBagIcon(),
-                      title: "eMAS",
-                      subtitle: "Mulai INves Yuk",
-                      color: primaryBlue,
-                    ),
-                  ],
-                ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _quickFeatureCard(
-                      iconWidget: _goalsTargetIcon(),
-                      title: "DANA Goals",
-                      subtitle: "Buat impian",
-                      color: primaryBlue,
-                    ),
-                    const SizedBox(height: 12),
-                    _quickFeatureCard(
-                      iconWidget: _kioskDanaIcon(primaryBlue),
-                      title: "Rekan DANA",
-                      subtitle: "Get Profits!",
-                      color: primaryBlue,
-                    ),
-                  ],
-                ),
-                _quickFeatureCard(
-                  iconWidget: _familyCircleIcon(),
-                  title: "Rek. Keluarga",
-                  subtitle: "Aktivitas Yuk!",
-                  color: primaryBlue,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _moneySummaryCard(
-                  title: "Uang Masuk",
-                  amount: _incomingAmount,
-                  subtitle: "",
-                  iconColor: Colors.green,
-                  amountColor: Colors.black,
-                  iconData: Icons.arrow_upward,
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Detail uang masuk ditampilkan."),
-                        behavior: SnackBarBehavior.floating,
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _moneySummaryCard(
-                  title: "Uang Keluar",
-                  amount: _outgoingAmount,
-                  subtitle: "",
-                  iconColor: Colors.orange,
-                  amountColor: Colors.black,
-                  iconData: Icons.arrow_downward,
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Detail uang keluar ditampilkan."),
-                        behavior: SnackBarBehavior.floating,
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  },
-                ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.maxWidth;
+        final spacing = maxWidth < 360 ? 6.0 : 10.0;
+        const columns = 3;
+        const leftPadding = 14.0;
+        const rightPadding = 30.0;
+        const keluargaOffset = 8.0;
+        final contentWidth = math.max(0, maxWidth - (leftPadding + rightPadding + 4.0 + keluargaOffset));
+        final cardWidth = (contentWidth - (spacing * (columns - 1))) / columns;
+
+        final saldoCard = _quickFeatureCard(
+          width: cardWidth,
+          iconWidget: _balanceLogoIcon(primaryBlue),
+          title: "Saldo",
+          subtitle: _formatRupiah(_balanceAmount),
+          color: primaryBlue,
+        );
+        final emasCard = _quickFeatureCard(
+          width: cardWidth,
+          iconWidget: _emasBagIcon(),
+          title: "eMAS",
+          subtitle: "Mulai INves Yuk",
+          color: primaryBlue,
+        );
+        final goalsCard = _quickFeatureCard(
+          width: cardWidth,
+          iconWidget: _goalsTargetIcon(),
+          title: "DANA Goals",
+          subtitle: "Buat impian",
+          color: primaryBlue,
+        );
+        final rekanDanaCard = _quickFeatureCard(
+          width: cardWidth,
+          iconWidget: _kioskDanaIcon(primaryBlue),
+          title: "Rekan DANA",
+          subtitle: "Get Profits!",
+          color: primaryBlue,
+        );
+        final keluargaCard = _quickFeatureCard(
+          width: cardWidth,
+          iconWidget: _familyCircleIcon(),
+          title: "Rek. Keluarga",
+          subtitle: "Aktivitas Yuk!",
+          color: primaryBlue,
+        );
+
+        return Container(
+          padding: const EdgeInsets.fromLTRB(leftPadding, 14, rightPadding, 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
-        ],
-      ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.center,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        saldoCard,
+                        SizedBox(width: spacing),
+                        goalsCard,
+                        SizedBox(width: spacing + keluargaOffset),
+                        keluargaCard,
+                      ],
+                    ),
+                    SizedBox(height: spacing),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        emasCard,
+                        SizedBox(width: spacing),
+                        rekanDanaCard,
+                        SizedBox(width: spacing),
+                        SizedBox(width: cardWidth),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _moneySummaryCard(
+                      title: "Uang Masuk",
+                      amount: _incomingAmount,
+                      subtitle: "",
+                      iconColor: Colors.green,
+                      amountColor: Colors.black,
+                      iconData: Icons.arrow_upward,
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Detail uang masuk ditampilkan."),
+                            behavior: SnackBarBehavior.floating,
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _moneySummaryCard(
+                      title: "Uang Keluar",
+                      amount: _outgoingAmount,
+                      subtitle: "",
+                      iconColor: Colors.orange,
+                      amountColor: Colors.black,
+                      iconData: Icons.arrow_downward,
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Detail uang keluar ditampilkan."),
+                            behavior: SnackBarBehavior.floating,
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -1415,10 +2667,11 @@ extension on _HomePageState {
     required String title,
     required String subtitle,
     required Color color,
+    required double width,
     VoidCallback? onTap,
   }) {
     return SizedBox(
-      width: 160,
+      width: width,
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
@@ -2075,6 +3328,52 @@ class _ProfileEditResult {
   final Uint8List? image;
 
   const _ProfileEditResult({required this.name, this.image});
+}
+
+class _DanaDealsTicketPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final ticketRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      const Radius.circular(6),
+    );
+    final ticketPaint = Paint()..color = const Color(0xFFFF9A3D);
+    canvas.drawRRect(ticketRect, ticketPaint);
+
+    final percentCenter = Offset(size.width * 0.28, size.height * 0.5);
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: "%",
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: size.height * 0.42,
+          fontWeight: FontWeight.w800,
+          height: 1,
+        ),
+      ),
+      textAlign: TextAlign.center,
+      textDirection: TextDirection.ltr,
+    )..layout();
+    textPainter.paint(
+      canvas,
+      percentCenter - Offset(textPainter.width / 2, textPainter.height / 2),
+    );
+
+    final dotPaint = Paint()..color = Colors.white.withOpacity(0.8);
+    final lineTop = size.height * 0.14;
+    final lineBottom = size.height * 0.86;
+    final lineX = size.width * 0.82;
+    final totalHeight = lineBottom - lineTop;
+    final spacing = totalHeight / 4;
+    final dotRadius = size.height * 0.07;
+    for (int i = 0; i < 5; i++) {
+      final y = lineTop + (i * spacing);
+      canvas.drawCircle(Offset(lineX, y), dotRadius, dotPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _MoneyBillPainter extends CustomPainter {
