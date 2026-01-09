@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'login.dart';
+import 'login_page.dart';
+import 'get_started_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -12,11 +13,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'UAS',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-      ),
-      home: const LoginPage(),
+
+      // Halaman pertama yang muncul
+      home: const GetStartedPage(),
     );
   }
 }
