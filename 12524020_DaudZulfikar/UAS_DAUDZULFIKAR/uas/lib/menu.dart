@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'detail_menu.dart';
 
 class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key});
@@ -11,6 +12,8 @@ class _MenuScreenState extends State<MenuScreen> {
   String selectedCategory = 'All';
 
   final List<String> categories = ['All', 'Pizza', 'Burger', 'Hotdog', 'Sea'];
+
+  int _selectedIndex = 0; // Default to Home for visual consistency, though we are not on Dashboard
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +50,7 @@ class _MenuScreenState extends State<MenuScreen> {
           ),
         ),
       ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 
@@ -279,20 +283,35 @@ class _MenuScreenState extends State<MenuScreen> {
     required String price,
     required String imagePath, // Optional image path
   }) {
-    return Container(
-      width: 180,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DetailMenuScreen(
+              name: name,
+              description: description,
+              price: price,
+              imagePath: imagePath,
+              imageColor: imageColor,
+            ),
           ),
-        ],
-      ),
-      child: Column(
+        );
+      },
+      child: Container(
+        width: 180,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -309,27 +328,30 @@ class _MenuScreenState extends State<MenuScreen> {
                     topRight: Radius.circular(20),
                   ),
                 ),
-                child: imagePath != null
+                child: imagePath.isNotEmpty
                     ? ClipRRect(
                         borderRadius: const BorderRadius.only(
                           topLeft: Radius.circular(20),
                           topRight: Radius.circular(20),
                         ),
-                        child: Image.asset(
-                          imagePath,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: 115,
-                          errorBuilder: (context, error, stackTrace) {
-                            // Fallback to icon if image fails to load
-                            return Center(
-                              child: Icon(
-                                Icons.fastfood,
-                                size: 65,
-                                color: Colors.white.withOpacity(0.9),
-                              ),
-                            );
-                          },
+                        child: Hero(
+                          tag: name,
+                          child: Image.asset(
+                            imagePath,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: 115,
+                            errorBuilder: (context, error, stackTrace) {
+                              // Fallback to icon if image fails to load
+                              return Center(
+                                child: Icon(
+                                  Icons.fastfood,
+                                  size: 65,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       )
                     : Center(
@@ -391,8 +413,8 @@ class _MenuScreenState extends State<MenuScreen> {
                     Text(
                       price,
                       style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                       ),
                     ),
                     Container(
@@ -413,6 +435,88 @@ class _MenuScreenState extends State<MenuScreen> {
               ],
             ),
           )
+        ],
+      ),
+      ),
+    );
+  }
+
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade300,
+            blurRadius: 4,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: BottomNavigationBar(
+        currentIndex: (_selectedIndex >= 0 && _selectedIndex < 5) ? _selectedIndex : 0,
+        onTap: (index) {
+          if (index == 0) {
+            Navigator.pop(context); // Go back to dashboard
+          } else {
+            setState(() {
+              _selectedIndex = index;
+            });
+          }
+        },
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Colors.black,
+        unselectedItemColor: Colors.black54,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        items: [
+          BottomNavigationBarItem(
+            icon: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.home,
+                  color: _selectedIndex == 0 ? Colors.black : Colors.black54,
+                ),
+                if (_selectedIndex == 0)
+                  const Padding(
+                    padding: EdgeInsets.only(left: 4),
+                    child: Icon(
+                      Icons.arrow_back,
+                      size: 14,
+                      color: Colors.black,
+                    ),
+                  ),
+              ],
+            ),
+            label: 'Home',
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.payment),
+            label: 'Payment',
+          ),
+          BottomNavigationBarItem(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.transparent, // No special highlight here like in dashboard
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.qr_code,
+                color: Colors.black54,
+              ),
+            ),
+            label: 'QR Code',
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.notifications),
+            label: 'Notification',
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Profile',
+          ),
         ],
       ),
     );
