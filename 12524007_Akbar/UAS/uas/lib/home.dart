@@ -54,8 +54,10 @@ class _HomePageState extends State<HomePage> {
   String? _lastScan;
   String _profileName = "Pengguna";
   int _balanceAmount = 2500000;
+  bool _hasActivityNotification = false;
+  final List<_ActivityItem> _activityItems = [];
   final String _incomingAmount = "Rp 12.500";
-  final String _outgoingAmount = "Rp 7.800";
+  int _outgoingAmount = 7800;
   Uint8List? _profileImage;
   final ScrollController _homeScrollController = ScrollController();
   final ScrollController _profileScrollController = ScrollController();
@@ -128,6 +130,259 @@ class _HomePageState extends State<HomePage> {
               fontSize: 9,
               fontWeight: FontWeight.w700,
               height: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _activityNavIcon() {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        const Icon(Icons.receipt_long_outlined),
+        if (_hasActivityNotification)
+          Positioned(
+            right: -2,
+            top: -2,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF4D4F),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 1.5),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _activityMoneyLogo() {
+    return Container(
+      width: 18,
+      height: 18,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFF0D8BFF), width: 1),
+      ),
+      child: Center(
+        child: Container(
+          width: 10,
+          height: 6,
+          decoration: BoxDecoration(
+            color: const Color(0xFF0D8BFF),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatActivityDate(DateTime dateTime) {
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "Mei",
+      "Jun",
+      "Jul",
+      "Agu",
+      "Sep",
+      "Okt",
+      "Nov",
+      "Des",
+    ];
+    final day = dateTime.day.toString().padLeft(2, "0");
+    final month = months[dateTime.month - 1];
+    final year = dateTime.year;
+    final hour = dateTime.hour.toString().padLeft(2, "0");
+    final minute = dateTime.minute.toString().padLeft(2, "0");
+    return "$day $month $year . $hour.$minute";
+  }
+
+  Widget _buildActivityPage(Color primaryBlue) {
+    final showActivity = _activityItems.isNotEmpty;
+    if (!showActivity) {
+      return _placeholderPage(
+        icon: Icons.receipt_long_outlined,
+        title: "Aktivitas",
+        subtitle: "Transaksi terbaru akan tampil di sini.",
+      );
+    }
+
+    final now = DateTime.now();
+    final monthTotal = _activityItems
+        .where((item) => item.timestamp.month == now.month && item.timestamp.year == now.year)
+        .fold<int>(0, (sum, item) => sum + item.amount);
+    final monthTotalLabel = "-${_formatRupiah(monthTotal)}";
+
+    return Container(
+      color: Colors.grey[50],
+      child: Column(
+        children: [
+          Container(
+            color: primaryBlue,
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+            child: SafeArea(
+              bottom: false,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        icon: const Icon(Icons.arrow_back, color: Colors.white, size: 22),
+                        onPressed: () {
+                          setState(() => _currentIndex = 0);
+                        },
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
+                        "Aktivitas",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE5F2FF),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: primaryBlue, width: 1),
+                          ),
+                          child: Icon(Icons.search, color: primaryBlue, size: 16),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          "Cari aktivitas",
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Bulan ini",
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                      ),
+                      Text(
+                        monthTotalLabel,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: _activityItems.length,
+                      separatorBuilder: (_, __) => Divider(color: Colors.grey[200], height: 24),
+                      itemBuilder: (context, index) {
+                        final item = _activityItems[index];
+                        final amountLabel = "-${_formatRupiah(item.amount)}";
+                        final dateLabel = _formatActivityDate(item.timestamp);
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Stack(
+                                children: [
+                                  const CircleAvatar(
+                                    radius: 24,
+                                    backgroundColor: Color(0xFFE5F2FF),
+                                    child: Icon(Icons.person, color: Color(0xFF0D8BFF)),
+                                  ),
+                                  Positioned(
+                                    right: -2,
+                                    bottom: -2,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(3),
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFF0D8BFF),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.arrow_forward, size: 10, color: Colors.white),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      "Kirim uang",
+                                      style: TextStyle(fontWeight: FontWeight.w700),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      dateLabel,
+                                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    amountLabel,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  _activityMoneyLogo(),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -292,14 +547,19 @@ class _HomePageState extends State<HomePage> {
             setState(() => _currentIndex = index);
             return;
           }
-          setState(() => _currentIndex = index);
+          setState(() {
+            _currentIndex = index;
+            if (index == 1) {
+              _hasActivityNotification = false;
+            }
+          });
         },
         selectedItemColor: primaryBlue,
         unselectedItemColor: Colors.grey[600],
         showUnselectedLabels: true,
         items: [
           const BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: "Beranda"),
-          const BottomNavigationBarItem(icon: Icon(Icons.receipt_long_outlined), label: "Aktivitas"),
+          BottomNavigationBarItem(icon: _activityNavIcon(), label: "Aktivitas"),
           BottomNavigationBarItem(
             icon: Container(
               padding: const EdgeInsets.all(10),
@@ -1070,6 +1330,9 @@ class _HomePageState extends State<HomePage> {
             }
             setState(() {
               _balanceAmount = math.max(0, _balanceAmount - amount);
+              _outgoingAmount += amount;
+              _hasActivityNotification = true;
+              _activityItems.insert(0, _ActivityItem(amount: amount, timestamp: DateTime.now()));
             });
           },
         ),
@@ -2067,6 +2330,13 @@ class _QuickSendContact {
   const _QuickSendContact({required this.name, required this.phone});
 }
 
+class _ActivityItem {
+  final int amount;
+  final DateTime timestamp;
+
+  const _ActivityItem({required this.amount, required this.timestamp});
+}
+
 class _Bank {
   final String name;
   final String code;
@@ -2160,13 +2430,7 @@ extension on _HomePageState {
           ),
         );
       case 1:
-        return _wrapMobile(
-          _placeholderPage(
-            icon: Icons.receipt_long_outlined,
-            title: "Aktivitas",
-            subtitle: "Transaksi terbaru akan tampil di sini.",
-          ),
-        );
+        return _buildActivityPage(primaryBlue);
       case 2:
         return _wrapMobile(
           _buildPayPage(primaryBlue, secondaryBlue),
@@ -2636,7 +2900,7 @@ extension on _HomePageState {
                   Expanded(
                     child: _moneySummaryCard(
                       title: "Uang Keluar",
-                      amount: _outgoingAmount,
+                      amount: _formatRupiah(_outgoingAmount),
                       subtitle: "",
                       iconColor: Colors.orange,
                       amountColor: Colors.black,
