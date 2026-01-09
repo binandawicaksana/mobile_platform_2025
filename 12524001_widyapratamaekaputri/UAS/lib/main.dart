@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/login.dart';
+import 'login.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'dashboard/settings_store.dart';
 
 void main() {
   runApp(const MyApp());
@@ -10,56 +12,67 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const LoginScreen(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: SettingsStore.themeMode,
+      builder: (_, mode, __) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: "UAS Shop",
+          themeMode: mode,
+          theme: ThemeData(
+            scaffoldBackgroundColor: const Color(0xFFFFF3E8),
+            colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFB45F4B)),
+            useMaterial3: true,
+            textTheme: GoogleFonts.fredokaTextTheme(),
+          ),
+          darkTheme: ThemeData(
+            brightness: Brightness.dark,
+            colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFB45F4B), brightness: Brightness.dark),
+            useMaterial3: true,
+            textTheme: GoogleFonts.fredokaTextTheme(ThemeData(brightness: Brightness.dark).textTheme),
+          ),
+          home: const SplashScreen(),
+        );
+      },
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-  final String title;
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 2), () {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-      ),
+      backgroundColor: const Color(0xFFD9A679),
       body: Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.shopping_bag_outlined, size: 90, color: Colors.black),
+            SizedBox(height: 12),
             Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+              "UAS Shop",
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
       ),
     );
   }
